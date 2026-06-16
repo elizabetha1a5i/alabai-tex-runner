@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright anthropic google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          pip install playwright google-generativeai google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
           playwright install chromium
           playwright install-deps chromium
 
@@ -32,6 +32,6 @@ jobs:
 
       - name: Run Tex QA tests (production)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python tex_qa_test_runner_prod.py

@@ -29,7 +29,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-import anthropic
+import google.generativeai as genai
 from qa_code_map import format_code_location_lines, get_all_known_conflicts
 
 # ============================================================================
@@ -439,13 +439,10 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 }}"""
 
     try:
-        client  = anthropic.Anthropic()
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=2500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw  = re.sub(r"^```(?:json)?\s*", "", message.content[0].text.strip())
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        gemini = genai.GenerativeModel("gemini-1.5-flash")
+        response = gemini.generate_content(prompt)
+        raw  = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
         raw  = re.sub(r"\s*```$", "", raw)
         data = json.loads(raw)
 
