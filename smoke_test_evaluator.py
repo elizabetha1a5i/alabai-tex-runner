@@ -101,7 +101,10 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 }}"""
 
     try:
-        gemini = genai.Client(api_key=api_key)
+        gemini = genai.Client(
+            api_key=api_key,
+            http_options={"api_version": "v1beta"},
+        )
         response = gemini.models.generate_content(
             model="gemini-1.5-flash",
             contents=prompt,
