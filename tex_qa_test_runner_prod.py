@@ -30,7 +30,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-import google.generativeai as genai
+from google import genai
 from qa_code_map import format_code_location_lines, get_all_known_conflicts
 
 # ============================================================================
@@ -440,9 +440,11 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 }}"""
 
     try:
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-        gemini = genai.GenerativeModel("gemini-1.5-flash")
-        response = gemini.generate_content(prompt)
+        gemini = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        response = gemini.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
         raw  = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
         raw  = re.sub(r"\s*```$", "", raw)
         data = json.loads(raw)
@@ -557,6 +559,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
         }
 
     except json.JSONDecodeError as e:
+        print(f"  ⚠️  Evaluator JSON parse error: {e}")
         return {
             "status": "ERROR", "score": "0/0",
             "notes": f"RESULT: ERROR\n\nSUMMARY\n-------\nEvaluator JSON parse error: {str(e)[:100]}",
@@ -565,6 +568,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
             "url_warnings": "", "criteria_tested": "0", "criteria_passed": "0", "criteria_failed": "0"
         }
     except Exception as e:
+        print(f"  ⚠️  Evaluator exception: {e}")
         return {
             "status": "ERROR", "score": "0/0",
             "notes": f"RESULT: ERROR\n\nSUMMARY\n-------\nEvaluator error: {str(e)[:100]}",

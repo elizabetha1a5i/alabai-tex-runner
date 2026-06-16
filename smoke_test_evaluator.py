@@ -9,7 +9,7 @@ import os
 import re
 import sys
 
-import google.generativeai as genai
+from google import genai
 
 
 FAKE_CONVERSATION = """\
@@ -101,9 +101,11 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 }}"""
 
     try:
-        genai.configure(api_key=api_key)
-        gemini = genai.GenerativeModel("gemini-1.5-flash")
-        response = gemini.generate_content(prompt)
+        gemini = genai.Client(api_key=api_key)
+        response = gemini.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
         raw = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
         raw = re.sub(r"\s*```$", "", raw)
         data = json.loads(raw)
