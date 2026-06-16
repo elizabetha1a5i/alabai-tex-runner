@@ -44,6 +44,7 @@ CRITERIA_RANGE    = "weber_ranch_qa_criteria!A:F"
 FACTS_RANGE       = "weber_ranch_products!A:D"
 INGREDIENTS_RANGE = "weber_ranch_ingredients!A:B"
 RECIPES_RANGE     = "weber_ranch_recipes!A:Z"
+RESULTS_TAB       = "Prod Results"
 
 SHEET_GIDS = {
     "criteria":    196230922,
@@ -289,6 +290,55 @@ def load_brand_facts(sheets_service):
             facts.append(fact)
     print(f"  ✅ {len(facts)} brand facts loaded")
     return facts
+
+
+# ============================================================================
+# RESULTS SHEET
+# ============================================================================
+
+RESULTS_COLUMNS = [
+    "test_id", "name", "category", "date", "environment",
+    "status", "score", "criteria_tested", "criteria_passed", "criteria_failed",
+    "critical_failures", "high_failures", "other_failures",
+    "all_failed_criteria", "url_failures", "url_warnings",
+    "response_time", "message_count",
+    "screenshot_path", "conversation_path",
+    "summary", "notes",
+]
+
+def append_to_results_sheet(sheets_service, results):
+    try:
+        meta     = sheets_service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        existing = [s["properties"]["title"] for s in meta.get("sheets", [])]
+
+        if RESULTS_TAB not in existing:
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=SPREADSHEET_ID,
+                body={"requests": [{"addSheet": {"properties": {"title": RESULTS_TAB}}}]},
+            ).execute()
+            sheets_service.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"{RESULTS_TAB}!A1",
+                valueInputOption="RAW",
+                body={"values": [RESULTS_COLUMNS]},
+            ).execute()
+
+        rows = [
+            [str(r.get(col, "") or "") for col in RESULTS_COLUMNS]
+            for r in results
+        ]
+        sheets_service.spreadsheets().values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{RESULTS_TAB}!A1",
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": rows},
+        ).execute()
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}"
+        print(f"  ✅ {len(results)} row(s) appended to '{RESULTS_TAB}' tab")
+        print(f"  📊 {sheet_url}")
+    except Exception as e:
+        print(f"  ⚠️  Could not write to results sheet: {e}")
 
 
 # ============================================================================
@@ -1835,6 +1885,9 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
 
     results_link = upload_to_drive(drive_service, local_csv, folder_id)
     os.remove(local_csv)
+
+    print("\n📊 Writing results to Google Sheets...")
+    append_to_results_sheet(sheets_service, results)
 
     total  = len(results)
     passed = sum(1 for r in results if r["status"]=="PASS")
