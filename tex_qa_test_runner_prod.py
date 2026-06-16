@@ -1607,7 +1607,7 @@ async def run_test(test_case, page, drive_service, folder_id,
     try:
         # Navigate to weberranch.com and wait for it to fully load
         await page.goto(BASE_URL)
-        await page.wait_for_load_state("networkidle")
+        await page.wait_for_load_state("load")
         await page.wait_for_timeout(3000)
 
         # ── STEP 1: Open the chat widget ────────────────────────────────────
@@ -1765,7 +1765,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
 
         print(f"\n🌐 Opening: {BASE_URL}")
         await page.goto(BASE_URL)
-        await page.wait_for_load_state("networkidle")
+        await page.wait_for_load_state("load")
         await page.wait_for_timeout(5000)
 
         for idx, test_case in enumerate(tests_to_run, 1):
@@ -1778,7 +1778,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
             if idx < len(tests_to_run):
                 print("\n  🔄 Reloading page for next test...")
                 await page.goto(BASE_URL)
-                await page.wait_for_load_state("networkidle")
+                await page.wait_for_load_state("load")
                 await page.wait_for_timeout(3000)
 
         print("\n⏹️  Closing browser...")
