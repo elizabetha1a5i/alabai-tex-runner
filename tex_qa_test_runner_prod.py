@@ -57,8 +57,19 @@ SCOPES = [
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE       = "token.pickle"
 
-ENVIRONMENT = "production_web"
-BASE_URL    = "https://weberranch.com"
+ENVIRONMENTS = {
+    "production_vercel": "https://weber-gpt-serverless.vercel.app/",
+    "production_web":    "https://weberranch.com",
+}
+
+# Switch here to change target. "production_vercel" = direct chat UI (no widget).
+# "production_web" = weberranch.com embedded widget (must be opened first).
+ENVIRONMENT = "production_vercel"
+BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
+
+# When True the test runner clicks the corner widget open before interacting.
+# Derived automatically: weberranch.com needs it, the Vercel URL does not.
+WIDGET_MODE = "weberranch.com" in BASE_URL
 
 # Selectors for the Tex chat widget on weberranch.com.
 # Tried in order — first match wins.
@@ -1610,12 +1621,13 @@ async def run_test(test_case, page, drive_service, folder_id,
         await page.wait_for_load_state("load")
         await page.wait_for_timeout(3000)
 
-        # ── STEP 1: Open the chat widget ────────────────────────────────────
-        widget_open = await open_chatbot_widget(page)
-        if not widget_open:
-            result["status"] = "ERROR"
-            result["notes"]  = "• Could not open chat widget — widget button not found"
-            return result
+        # ── STEP 1: Open the chat widget (weberranch.com only) ──────────────
+        if WIDGET_MODE:
+            widget_open = await open_chatbot_widget(page)
+            if not widget_open:
+                result["status"] = "ERROR"
+                result["notes"]  = "• Could not open chat widget — widget button not found"
+                return result
 
         await page.wait_for_timeout(1500)
 
