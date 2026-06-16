@@ -1,0 +1,58 @@
+name: Generate Clean CSV
+
+on:
+  workflow_run:
+    workflows:
+      - "Tex QA Scheduled Tests"
+      - "Alibi Feedback Tests"
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-csv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: Write Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+
+      - name: Generate and upload CSVs
+        run: python generate_clean_csv.py
+
+      - name: Update dashboard with file IDs
+        run: |
+          source drive_file_ids.txt 2>/dev/null || true
+          if [ -f drive_file_ids.txt ]; then
+            CLEAN_ID=$(grep CLEAN_FILE_ID drive_file_ids.txt | cut -d= -f2)
+            MASTER_ID=$(grep MASTER_FILE_ID drive_file_ids.txt | cut -d= -f2)
+            sed -i "s/CLEAN_FILE_ID_PLACEHOLDER/${CLEAN_ID}/g" index.html
+            sed -i "s/MASTER_FILE_ID_PLACEHOLDER/${MASTER_ID}/g" index.html
+            echo "✅ Dashboard updated with file IDs"
+          fi
+
+      - name: Deploy to GitHub Pages
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Auto-update dashboard [skip ci]"
+          git push

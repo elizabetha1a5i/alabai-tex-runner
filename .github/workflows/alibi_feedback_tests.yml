@@ -1,0 +1,42 @@
+name: Alibi Feedback Tests
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 9am UTC
+    - cron: '0 17 * * *'  # 5pm UTC
+  workflow_dispatch:        # manual trigger
+
+jobs:
+  run-feedback-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Write Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+
+      - name: Install xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Run Alibi Feedback Tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HEADLESS: "true"
+        run: |
+          xvfb-run python alibi_feedback_runner_v3.py

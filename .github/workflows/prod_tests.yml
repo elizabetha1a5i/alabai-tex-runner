@@ -1,0 +1,37 @@
+name: Tex QA Production Tests (weberranch.com)
+
+on:
+  schedule:
+    - cron: '0 10 * * *'   # 10am UTC daily (separate from staging run at 9am)
+  workflow_dispatch:        # manual trigger from GitHub Actions tab
+
+jobs:
+  run-prod-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Write Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+
+      - name: Run Tex QA tests (production)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python tex_qa_test_runner_prod.py

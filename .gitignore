@@ -1,0 +1,9 @@
+credentials.json
+token.pickle
+*.pickle
+__pycache__/
+*.pyc
+.env
+/tmp/
+tex_results.csv
+tex_prod_results.csv

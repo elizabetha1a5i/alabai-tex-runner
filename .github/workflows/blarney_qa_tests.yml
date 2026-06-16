@@ -1,0 +1,55 @@
+name: Blarney QA Tests
+on:
+  workflow_dispatch:
+    inputs:
+      selection:
+        description: 'Test selection (e.g. H, R, AR, CR, ALL, 1-5, 1,3,5)'
+        required: true
+        default: 'ALL'
+      environment:
+        description: 'Environment to test against (UAT, STAGING, or any key from custom_envs.json)'
+        required: false
+        default: 'UAT'
+
+jobs:
+  run-blarney-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic playwright google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Write Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+
+      - name: Install xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Test API key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          curl https://api.anthropic.com/v1/models \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01"
+
+      - name: Run Blarney QA Tests
+        env:
+          HEADLESS: "true"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BLARNEY_ENV: ${{ github.event.inputs.environment }}
+        run: |
+          echo '${{ github.event.inputs.selection }}' | xvfb-run python alabai_blarney_runner.py

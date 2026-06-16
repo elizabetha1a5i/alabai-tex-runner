@@ -1,0 +1,53 @@
+name: Tex — Custom Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_name:
+        description: "Test name (e.g. Consent Flow Age Check)"
+        required: true
+      test_description:
+        description: "What the test is about (e.g. Tex correctly rejects users under 21)"
+        required: true
+
+jobs:
+  run-custom-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install \
+            anthropic \
+            playwright \
+            google-auth \
+            google-auth-oauthlib \
+            google-api-python-client
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Install xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Write Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+
+      - name: Run custom test
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HEADLESS: "true"
+          CUSTOM_TEST_NAME: ${{ github.event.inputs.test_name }}
+          CUSTOM_TEST_DESCRIPTION: ${{ github.event.inputs.test_description }}
+        run: xvfb-run python tex_custom_test_runner.py

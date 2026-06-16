@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex QA Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #F8FAFB; color: #1A1A2E; min-height: 100vh; }
+
+  .header {
+    background: #fff; border-bottom: 1px solid #EAECEF;
+    padding: 22px 48px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 5px; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header-tags { display: flex; gap: 8px; }
+  .badge { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; }
+  .badge.staging { background: #EEF2FF; color: #4F46E5; }
+  .badge.issue   { background: #FEF3C7; color: #D97706; }
+  .header-right { font-size: 12px; color: #9CA3AF; text-align: right; line-height: 1.6; }
+  .header-right strong { color: #1A1A2E; }
+
+  .toolbar {
+    background: #fff; border-bottom: 1px solid #EAECEF;
+    padding: 10px 48px; display: flex; align-items: center; gap: 10px;
+  }
+  .toolbar-btn {
+    border: 1px solid #EAECEF; background: #F8FAFB; border-radius: 7px;
+    padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
+    font-family: 'Inter', sans-serif; color: #374151; transition: all 0.15s; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .toolbar-btn:hover { background: #EEF2FF; border-color: #C7D2FE; color: #4F46E5; }
+  .toolbar-btn.primary { background: #4F46E5; color: white; border-color: #4F46E5; }
+  .toolbar-btn.primary:hover { background: #4338CA; }
+  .toolbar-note { font-size: 12px; color: #9CA3AF; margin-left: auto; }
+
+  .loading-bar {
+    background: #EEF2FF; border-bottom: 1px solid #C7D2FE;
+    padding: 10px 48px; font-size: 12px; color: #4338CA;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .spinner { width: 14px; height: 14px; border: 2px solid #C7D2FE; border-top-color: #4F46E5; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .context-bar {
+    background: #FFFBEB; border-bottom: 1px solid #FDE68A;
+    padding: 10px 48px; font-size: 12px; color: #92400E;
+  }
+
+  .main { max-width: 1100px; margin: 0 auto; padding: 28px 48px; }
+  .section-title { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #9CA3AF; margin-bottom: 12px; }
+
+  .editable-card {
+    background: #fff; border-radius: 10px; border: 1px solid #EAECEF;
+    padding: 14px 18px; margin-bottom: 22px; position: relative;
+  }
+  .editable-card:focus-within { border-color: #C7D2FE; }
+  .editable-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #9CA3AF; margin-bottom: 5px; }
+  .editable-text {
+    font-size: 12px; color: #374151; line-height: 1.6; border: none; outline: none;
+    width: 100%; background: transparent; font-family: 'Inter', sans-serif; resize: none;
+  }
+  .edit-hint { position: absolute; top: 10px; right: 12px; font-size: 10px; color: #E0E7FF; pointer-events: none; }
+  .editable-card:focus-within .edit-hint { color: #4F46E5; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: #fff; border-radius: 10px; padding: 20px; border: 1px solid #EAECEF; }
+  .kpi-label { font-size: 11px; color: #9CA3AF; font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-num { font-size: 38px; font-weight: 700; color: #1A1A2E; line-height: 1; margin-bottom: 7px; }
+  .kpi-num .unit { font-size: 18px; font-weight: 400; color: #9CA3AF; }
+  .kpi-sub { font-size: 12px; }
+  .pill { display: inline-flex; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+  .pill.green { background: #DCFCE7; color: #16A34A; }
+  .pill.red   { background: #FEE2E2; color: #DC2626; }
+  .pill.amber { background: #FEF9C3; color: #CA8A04; }
+  .pill.blue  { background: #EEF2FF; color: #4F46E5; }
+
+  .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 22px; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #EAECEF; padding: 22px; }
+  .card h3 { font-size: 14px; font-weight: 600; color: #1A1A2E; margin-bottom: 3px; }
+  .card-sub { font-size: 12px; color: #9CA3AF; margin-bottom: 18px; }
+
+  .donut-wrap { display: flex; align-items: center; gap: 24px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 9px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .legend-val { font-weight: 600; color: #1A1A2E; margin-left: auto; padding-left: 16px; }
+
+  .chart-area { width: 100%; height: 155px; }
+  svg.linechart { width: 100%; height: 100%; overflow: visible; }
+
+  .bar-list { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .bar-id { font-weight: 600; color: #6B7280; width: 56px; flex-shrink: 0; font-size: 11px; }
+  .bar-name { color: #374151; width: 165px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 6px; background: #F3F4F6; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-count { font-weight: 600; color: #1A1A2E; font-size: 12px; width: 36px; text-align: right; flex-shrink: 0; }
+
+  .issue-tracker { display: flex; flex-direction: column; gap: 8px; }
+  .issue-row { display: flex; flex-direction: column; gap: 6px; padding: 11px 14px; border-radius: 8px; background: #F8FAFB; border-left: 3px solid #E5E7EB; }
+  .issue-row.open     { border-left-color: #EF4444; }
+  .issue-row.progress { border-left-color: #F59E0B; }
+  .issue-row.resolved { border-left-color: #22C55E; }
+  .issue-main { display: flex; flex-direction: column; gap: 2px; }
+  .issue-right { display: flex; align-items: center; gap: 10px; }
+  .issue-text { font-size: 13px; color: #374151; line-height: 1.4; flex: 1; }
+  .issue-hint { font-size: 11px; color: #9CA3AF; }
+  .issue-score { font-size: 12px; font-weight: 600; color: #1A1A2E; white-space: nowrap; }
+  .issue-select {
+    border: 1px solid #E5E7EB; border-radius: 6px; padding: 4px 8px;
+    font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif;
+    cursor: pointer; background: #fff; flex-shrink: 0;
+  }
+  .issue-select.open     { color: #DC2626; border-color: #FECACA; background: #FEE2E2; }
+  .issue-select.progress { color: #D97706; border-color: #FDE68A; background: #FEF3C7; }
+  .issue-select.resolved { color: #16A34A; border-color: #BBF7D0; background: #DCFCE7; }
+  .issue-status-print { display: none; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+  .issue-status-print.open     { background: #FEE2E2; color: #DC2626; }
+  .issue-status-print.progress { background: #FEF3C7; color: #D97706; }
+  .issue-status-print.resolved { background: #DCFCE7; color: #16A34A; }
+
+  .filter-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+    border: 1px solid #EAECEF; background: #F8FAFB; cursor: pointer;
+    font-family: 'Inter', sans-serif; color: #6B7280; transition: all 0.15s;
+  }
+  .filter-btn:hover { background: #EEF2FF; border-color: #C7D2FE; color: #4F46E5; }
+  .filter-btn.active { background: #1A1A2E; color: white; border-color: #1A1A2E; }
+
+  .empty-state { text-align: center; padding: 32px; color: #9CA3AF; font-size: 13px; }
+  .footer { text-align: center; padding: 20px; font-size: 11px; color: #9CA3AF; border-top: 1px solid #EAECEF; margin-top: 8px; }
+
+  @media print {
+    body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .toolbar, .edit-hint, .issue-select, .loading-bar { display: none !important; }
+    .issue-status-print { display: inline !important; }
+    .card, .kpi, .editable-card, .issue-row { break-inside: avoid; }
+  }
+  @media (max-width: 800px) {
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .main, .header, .toolbar, .context-bar, .loading-bar { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <h1>Tex &nbsp;QA Dashboard</h1>
+    <div class="header-tags">
+      <span class="badge staging">Staging</span>
+      <span class="badge issue">Issue-Specific Test Run</span>
+    </div>
+  </div>
+  <div class="header-right">
+    Last updated: <strong id="last-updated">Loading...</strong><br>
+    Auto-refreshes on load
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="toolbar-btn" onclick="loadData()">🔄 Refresh Data</button>
+  <div style="width:1px;height:24px;background:#EAECEF;margin:0 4px"></div>
+  <button class="toolbar-btn primary" onclick="window.print()">⬇ Export PDF</button>
+  <span class="toolbar-note">Data loads automatically from latest test run</span>
+</div>
+
+<div class="loading-bar" id="loading-bar">
+  <div class="spinner"></div>
+  Loading latest test data...
+</div>
+
+<div class="context-bar">
+  ⚠️ This report covers <strong>issue-specific tests</strong> only — targeted tests raised against known feedback items. General scheduled test results are tracked separately.
+</div>
+
+<main class="main">
+
+  <div class="section-title">Summary</div>
+  <div class="editable-card">
+    <div class="editable-label">Summary <span style="font-weight:400;text-transform:none;letter-spacing:0">(click to edit)</span></div>
+    <textarea class="editable-text" id="summary-text" rows="2">Loading data...</textarea>
+    <span class="edit-hint">✏️</span>
+  </div>
+
+  <div class="section-title">Test Results</div>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Pass Rate</div>
+      <div class="kpi-num" id="kpi-rate">—<span class="unit">%</span></div>
+      <div class="kpi-sub"><span class="pill blue" id="kpi-rate-pill">Loading...</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tests Run</div>
+      <div class="kpi-num" id="kpi-total">—</div>
+      <div class="kpi-sub">issue-specific variants</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Failures</div>
+      <div class="kpi-num" id="kpi-fail">—</div>
+      <div class="kpi-sub"><span class="pill red" id="kpi-fail-pill">—</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Issues Tracked</div>
+      <div class="kpi-num" id="kpi-issues">—</div>
+      <div class="kpi-sub"><span class="pill blue">unique issues</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">Breakdown</div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Pass Rate Over Time</h3>
+      <p class="card-sub">Historical trend across all test runs</p>
+      <div class="chart-area">
+        <svg class="linechart" id="trend-svg" viewBox="0 0 500 140" preserveAspectRatio="none">
+          <text x="250" y="75" text-anchor="middle" fill="#9CA3AF" font-size="12" font-family="Inter">Loading...</text>
+        </svg>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Results Split</h3>
+      <p class="card-sub" id="donut-sub">Latest run</p>
+      <div class="donut-wrap">
+        <svg id="donut-svg" width="115" height="115" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="40" fill="none" stroke="#F3F4F6" stroke-width="14"/>
+          <text x="55" y="60" text-anchor="middle" fill="#9CA3AF" font-size="11" font-family="Inter">Loading</text>
+        </svg>
+        <div class="donut-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#22C55E"></span>Pass<span class="legend-val" id="leg-pass">—</span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:#EF4444"></span>Fail<span class="legend-val" id="leg-fail">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Issue Tracker</div>
+  <div class="card" style="margin-bottom:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <h3>Feedback Issues</h3>
+      <div style="display:flex;gap:6px">
+        <button class="filter-btn active" data-filter="all"      onclick="setFilter('all')">All</button>
+        <button class="filter-btn"        data-filter="open"     onclick="setFilter('open')">Open</button>
+        <button class="filter-btn"        data-filter="progress" onclick="setFilter('progress')">In Progress</button>
+        <button class="filter-btn"        data-filter="resolved" onclick="setFilter('resolved')">Resolved</button>
+      </div>
+    </div>
+    <p class="card-sub" style="margin-bottom:10px">
+      Auto-scored: <strong>Resolved</strong> = 80%+ pass rate across 6+ variants · <strong>In Progress</strong> = below threshold · <strong>Open</strong> = no tests yet
+    </p>
+    <div class="issue-tracker" id="issue-tracker">
+      <div class="empty-state">Loading issues...</div>
+    </div>
+  </div>
+
+  <div class="editable-card">
+    <div class="editable-label">Disclaimer <span style="font-weight:400;text-transform:none;letter-spacing:0">(click to edit)</span></div>
+    <textarea class="editable-text" rows="2">Results reflect automated testing against the staging environment. Tests are generated from known issue descriptions and may not cover all edge cases. Results should be reviewed alongside manual testing.</textarea>
+    <span class="edit-hint">✏️</span>
+  </div>
+
+</main>
+
+<footer class="footer">Tex QA Dashboard &nbsp;·&nbsp; Powered by Alibi AI &nbsp;·&nbsp; Auto-updates after every test run</footer>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+// These get replaced by CI when generate_clean_csv.py runs
+const CLEAN_FILE_ID  = '1Km35Hu1flPgvS0_Ymk2UAh5rWTUQDtqQ';
+const MASTER_FILE_ID = '1NG-ZfXS63otobfb1Uq-n8glRoWiDKzIm';
+
+const PASS_THRESHOLD = 0.80;
+const MIN_VARIANTS   = 6;
+const ISSUES = [];
+let currentFilter = 'all';
+
+// ── FETCH DATA ────────────────────────────────────────────
+async function fetchCSV(fileId) {
+  const url = `https://drive.google.com/uc?export=download&id=${fileId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+  return res.text();
+}
+
+function parseCSV(text) {
+  const result = [];
+  let lines = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') { inQ = !inQ; cur += ch; }
+    else if (ch === '\n' && !inQ) { lines.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  if (cur.trim()) lines.push(cur);
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const row = []; let field = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (q && line[i+1] === '"') { field += '"'; i++; } else { q = !q; } }
+      else if (ch === ',' && !q) { row.push(field.replace(/^"|"$/g,'')); field = ''; }
+      else { field += ch; }
+    }
+    row.push(field.replace(/^"|"$/g,''));
+    result.push(row);
+  }
+  return result;
+}
+
+async function loadData() {
+  document.getElementById('loading-bar').style.display = 'flex';
+
+  try {
+    // Load clean CSV (latest run)
+    const cleanText  = await fetchCSV(CLEAN_FILE_ID);
+    const cleanRows  = parseCSV(cleanText);
+    const cleanHeaders = cleanRows[0].map(h => h.toLowerCase());
+    const feedbackIdx  = cleanHeaders.indexOf('feedback');
+    const statusIdx    = cleanHeaders.indexOf('status');
+
+    let pass = 0, fail = 0;
+    const issueMap = new Map();
+
+    for (const row of cleanRows.slice(1)) {
+      const feedback = (row[feedbackIdx]||'').trim();
+      const status   = (row[statusIdx]||'').trim().toUpperCase();
+      if (!feedback || (status !== 'PASS' && status !== 'FAIL')) continue;
+      if (!issueMap.has(feedback)) issueMap.set(feedback, { text: feedback, pass: 0, total: 0, manualStatus: null });
+      issueMap.get(feedback).total++;
+      if (status === 'PASS') { issueMap.get(feedback).pass++; pass++; }
+      else { fail++; }
+    }
+
+    ISSUES.length = 0;
+    issueMap.forEach(v => ISSUES.push(v));
+
+    // Load master CSV for trend
+    let trendPoints = [];
+    try {
+      const masterText = await fetchCSV(MASTER_FILE_ID);
+      const masterRows = parseCSV(masterText);
+      const mHeaders   = masterRows[0].map(h => h.toLowerCase());
+      const mDateIdx   = mHeaders.indexOf('date');
+      const mStatusIdx = mHeaders.indexOf('status');
+
+      const byDate = {};
+      for (const row of masterRows.slice(1)) {
+        const date   = (row[mDateIdx]||'').split(' ')[0];
+        const status = (row[mStatusIdx]||'').toUpperCase();
+        if (!date || (status !== 'PASS' && status !== 'FAIL')) continue;
+        if (!byDate[date]) byDate[date] = { pass: 0, total: 0 };
+        byDate[date].total++;
+        if (status === 'PASS') byDate[date].pass++;
+      }
+
+      trendPoints = Object.entries(byDate)
+        .sort(([a],[b]) => a.localeCompare(b))
+        .map(([, v]) => Math.round((v.pass / v.total) * 100));
+    } catch(e) {
+      console.log('Master CSV not available yet:', e.message);
+    }
+
+    // Update last updated
+    const dates = cleanRows.slice(1).map(r => r[0]).filter(Boolean);
+    document.getElementById('last-updated').textContent = dates.length ? dates[dates.length-1] : new Date().toLocaleDateString();
+
+    renderAll(pass, fail, trendPoints);
+
+  } catch(e) {
+    console.error('Failed to load data:', e);
+    document.getElementById('loading-bar').innerHTML = `❌ Could not load data — ${e.message}`;
+    return;
+  }
+
+  document.getElementById('loading-bar').style.display = 'none';
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function renderAll(pass, fail, trendPoints) {
+  const total = pass + fail;
+  const rate  = total > 0 ? Math.round((pass/total)*100) : 0;
+
+  document.getElementById('kpi-rate').innerHTML = `${rate}<span class="unit">%</span>`;
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-fail').textContent  = fail;
+  document.getElementById('kpi-issues').textContent = ISSUES.length;
+  document.getElementById('donut-sub').textContent = `${total} issue-specific tests`;
+  document.getElementById('leg-pass').textContent = pass;
+  document.getElementById('leg-fail').textContent = fail;
+
+  const rp = document.getElementById('kpi-rate-pill');
+  rp.textContent = `${pass} of ${total} passing`;
+  rp.className   = `pill ${rate>=70?'green':rate>=50?'amber':'red'}`;
+  document.getElementById('kpi-fail-pill').textContent = `${Math.round((fail/Math.max(total,1))*100)}% fail rate`;
+
+  document.getElementById('summary-text').value =
+    `Issue-specific test run · ${ISSUES.length} issues tracked · ${total} test variants run · Overall pass rate ${rate}% · Auto-updated from latest test run`;
+
+  renderDonut(pass, fail);
+  renderTrend(trendPoints);
+  renderTracker();
+}
+
+function renderDonut(pass, fail) {
+  const total=pass+fail; if(!total)return;
+  const cx=55,cy=55,r=40,sw=14,circ=2*Math.PI*r;
+  let offset=0,arcs='';
+  [[pass,'#22C55E'],[fail,'#EF4444']].forEach(([v,c])=>{
+    const d=(v/total)*circ;
+    arcs+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-dasharray="${d} ${circ-d}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=d;
+  });
+  const rate=Math.round((pass/total)*100);
+  document.getElementById('donut-svg').innerHTML=arcs+`
+    <text x="${cx}" y="${cy-4}" text-anchor="middle" fill="#1A1A2E" font-size="16" font-weight="700" font-family="Inter">${rate}%</text>
+    <text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#9CA3AF" font-size="10" font-family="Inter">pass rate</text>`;
+}
+
+function renderTrend(points) {
+  const svg = document.getElementById('trend-svg');
+  if (!points || points.length < 2) {
+    svg.innerHTML = `<text x="250" y="75" text-anchor="middle" fill="#9CA3AF" font-size="12" font-family="Inter">More runs needed for trend</text>`;
+    return;
+  }
+  const W=500,H=120,PAD=30;
+  const pts=points.map((v,i)=>({x:PAD+(i/(points.length-1))*(W-PAD*2),y:H-PAD-(v/100)*(H-PAD*2)}));
+  let grid='';
+  [0,50,100].forEach(v=>{
+    const y=H-PAD-(v/100)*(H-PAD*2);
+    grid+=`<line x1="${PAD}" y1="${y}" x2="${W-PAD}" y2="${y}" stroke="#F3F4F6" stroke-width="1"/>`;
+    grid+=`<text x="${PAD-6}" y="${y+4}" text-anchor="end" fill="#9CA3AF" font-size="9" font-family="Inter">${v}%</text>`;
+  });
+  const line=pts.map((p,i)=>`${i===0?'M':'L'}${p.x},${p.y}`).join(' ');
+  const area=line+` L${pts[pts.length-1].x},${H-PAD} L${pts[0].x},${H-PAD} Z`;
+  const dots=pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#4F46E5" stroke="white" stroke-width="2"/><text x="${p.x}" y="${p.y-8}" text-anchor="middle" fill="#4F46E5" font-size="9" font-weight="600" font-family="Inter">${points[i]}%</text>`).join('');
+  svg.innerHTML=`<defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4F46E5" stop-opacity="0.12"/><stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#lg)"/><path d="${line}" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+}
+
+function autoStatus(iss) {
+  if (iss.total === 0) return 'open';
+  const rate = iss.pass / iss.total;
+  if (rate >= PASS_THRESHOLD && iss.total >= MIN_VARIANTS) return 'resolved';
+  return 'progress';
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  renderTracker();
+}
+
+function renderTracker() {
+  const filtered = ISSUES.filter(iss => {
+    const s = iss.manualStatus || autoStatus(iss);
+    return currentFilter === 'all' || s === currentFilter;
+  });
+
+  if (!filtered.length) {
+    document.getElementById('issue-tracker').innerHTML = '<div class="empty-state">No issues match this filter</div>';
+    return;
+  }
+
+  document.getElementById('issue-tracker').innerHTML = filtered.map((iss) => {
+    const gi    = ISSUES.indexOf(iss);
+    const autoS = autoStatus(iss);
+    const s     = iss.manualStatus || autoS;
+    const label = s==='open'?'Open':s==='progress'?'In Progress':'Resolved';
+    const rate  = iss.total > 0 ? Math.round((iss.pass/iss.total)*100) : 0;
+    const hint  = s==='resolved' ? '✓ Threshold met'
+                : iss.total===0  ? 'No tests run yet'
+                : `${Math.max(0, Math.ceil(PASS_THRESHOLD * Math.max(iss.total, MIN_VARIANTS)) - iss.pass)} passes needed to resolve`;
+
+    return `<div class="issue-row ${s}" id="irow-${gi}">
+      <div class="issue-main">
+        <span class="issue-text">${iss.text}</span>
+        <span class="issue-hint">${hint}</span>
+      </div>
+      <div class="issue-right">
+        <span class="issue-score">${iss.pass}/${iss.total} <span style="color:#9CA3AF;font-weight:400">(${rate}%)</span></span>
+        <select class="issue-select ${s}" onchange="overrideStatus(${gi},this)">
+          <option value="auto"     ${!iss.manualStatus?'selected':''}>Auto</option>
+          <option value="open"     ${iss.manualStatus==='open'    ?'selected':''}>Open</option>
+          <option value="progress" ${iss.manualStatus==='progress'?'selected':''}>In Progress</option>
+          <option value="resolved" ${iss.manualStatus==='resolved'?'selected':''}>Resolved</option>
+        </select>
+        <span class="issue-status-print ${s}">${label}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function overrideStatus(i, sel) {
+  ISSUES[i].manualStatus = sel.value === 'auto' ? null : sel.value;
+  const iss = ISSUES[i];
+  const s   = iss.manualStatus || autoStatus(iss);
+  const row = document.getElementById(`irow-${i}`);
+  if (!row) return;
+  const label = s==='open'?'Open':s==='progress'?'In Progress':'Resolved';
+  row.className = `issue-row ${s}`;
+  sel.className = `issue-select ${s}`;
+  const lbl = row.querySelector('.issue-status-print');
+  if (lbl) { lbl.className = `issue-status-print ${s}`; lbl.textContent = label; }
+}
+
+// ── INIT ──────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
