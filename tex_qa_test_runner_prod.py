@@ -30,6 +30,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 import anthropic
+from qa_code_map import format_code_location_lines, get_all_known_conflicts
 
 # ============================================================================
 # CONFIGURATION
@@ -495,8 +496,10 @@ Return ONLY valid JSON — no markdown fences, no preamble:
                 notes_lines += [
                     f"  [{r['id']}] {name}",
                     f"  Rule:   {applicable.get(r['id'],{}).get('rule','')}",
-                    f"  Reason: {r.get('note','')}", ""
+                    f"  Reason: {r.get('note','')}",
                 ]
+                notes_lines += format_code_location_lines(r["id"])
+                notes_lines.append("")
 
         if fh:
             notes_lines += ["HIGH FAILURES", "-------------"]
@@ -505,14 +508,21 @@ Return ONLY valid JSON — no markdown fences, no preamble:
                 notes_lines += [
                     f"  [{r['id']}] {name}",
                     f"  Rule:   {applicable.get(r['id'],{}).get('rule','')}",
-                    f"  Reason: {r.get('note','')}", ""
+                    f"  Reason: {r.get('note','')}",
                 ]
+                notes_lines += format_code_location_lines(r["id"])
+                notes_lines.append("")
 
         if fo:
             notes_lines += ["MEDIUM / LOW FAILURES", "---------------------"]
             for r in fo:
                 name = applicable.get(r["id"], {}).get("name", r["id"])
-                notes_lines += [f"  [{r['id']}] {name}", f"  Reason: {r.get('note','')}", ""]
+                notes_lines += [
+                    f"  [{r['id']}] {name}",
+                    f"  Reason: {r.get('note','')}",
+                ]
+                notes_lines += format_code_location_lines(r["id"])
+                notes_lines.append("")
 
         passing = [r for r in app if r.get("pass", True)]
         if passing:
@@ -1758,6 +1768,16 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
     if not criteria:
         print("❌ No criteria loaded — cannot evaluate.")
         return
+
+    # Surface known prompt ↔ criteria conflicts at the start of every run
+    conflicts = get_all_known_conflicts()
+    if conflicts:
+        print("\n⚠️  KNOWN PROMPT CONFLICTS (criteria that will always fail until the repo is updated):")
+        for cid, info in conflicts.items():
+            print(f"  [{cid}] {info['conflict']}")
+            print(f"        Fix: {info['fix']}")
+            print(f"        File: {info['conflicting_file']}")
+        print()
 
     run_name = f"Tex_Prod_Run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     print(f"\n📁 Creating Drive folder: {run_name}")

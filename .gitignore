@@ -7,3 +7,5 @@ __pycache__/
 /tmp/
 tex_results.csv
 tex_prod_results.csv
+.claude/
+*.code-workspace
