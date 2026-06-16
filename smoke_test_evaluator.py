@@ -11,6 +11,35 @@ import sys
 
 from google import genai
 
+_PREFERRED_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+]
+
+def _pick_model(client):
+    try:
+        available = []
+        for m in client.models.list():
+            name = m.name
+            if name.startswith("models/"):
+                name = name[len("models/"):]
+            available.append(name)
+        for preferred in _PREFERRED_MODELS:
+            for avail in available:
+                if avail == preferred or avail.startswith(preferred + "-"):
+                    print(f"  Using Gemini model: {avail}")
+                    return avail
+        if available:
+            print(f"  Using Gemini model (fallback): {available[0]}")
+            return available[0]
+    except Exception as e:
+        print(f"  Could not list models: {e}")
+    print(f"  Using Gemini model (default): {_PREFERRED_MODELS[0]}")
+    return _PREFERRED_MODELS[0]
+
 
 FAKE_CONVERSATION = """\
 User: Can you suggest a cocktail?
@@ -103,7 +132,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
     try:
         gemini = genai.Client(api_key=api_key)
         response = gemini.models.generate_content(
-            model="gemini-2.5-flash",
+            model=_pick_model(gemini),
             contents=prompt,
         )
         raw = re.sub(r"^```(?:json)?\s*", "", response.text.strip())

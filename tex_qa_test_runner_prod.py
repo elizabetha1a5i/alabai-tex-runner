@@ -407,6 +407,43 @@ def build_recipe_kb_context(conversation_text, recipes):
 # EVALUATOR
 # ============================================================================
 
+_PREFERRED_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+]
+_selected_model = None
+
+def _pick_gemini_model(client):
+    global _selected_model
+    if _selected_model:
+        return _selected_model
+    try:
+        available = []
+        for m in client.models.list():
+            name = m.name
+            if name.startswith("models/"):
+                name = name[len("models/"):]
+            available.append(name)
+        for preferred in _PREFERRED_MODELS:
+            for avail in available:
+                if avail == preferred or avail.startswith(preferred + "-"):
+                    _selected_model = avail
+                    print(f"  🤖 Gemini model selected: {_selected_model}")
+                    return _selected_model
+        if available:
+            _selected_model = available[0]
+            print(f"  🤖 Gemini model (fallback): {_selected_model}")
+            return _selected_model
+    except Exception as e:
+        print(f"  ⚠️  Could not list Gemini models: {e}")
+    _selected_model = _PREFERRED_MODELS[0]
+    print(f"  🤖 Gemini model (default): {_selected_model}")
+    return _selected_model
+
+
 def evaluate_tex_response(conversation_text, test_name, test_category,
                            criteria, url_results=None,
                            recipes=None, brand_facts=None):
@@ -492,7 +529,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
     try:
         gemini = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         response = gemini.models.generate_content(
-            model="gemini-2.5-flash",
+            model=_pick_gemini_model(gemini),
             contents=prompt,
         )
         raw  = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
