@@ -11,6 +11,7 @@ Key differences from staging runner:
   • No consent opener injected (web widget, not SMS flow)
 """
 
+import argparse
 import asyncio
 import csv
 import json
@@ -1853,6 +1854,13 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
 # ============================================================================
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Run only the first N tests (e.g. --limit 1 to smoke-test the pipeline)")
+    args = parser.parse_args()
+
+    tests = TEST_SCRIPTS[:args.limit] if args.limit else TEST_SCRIPTS
+
     print("\n🔐 Connecting to Google...")
     drive_service, sheets_service = get_google_services()
     if not drive_service:
@@ -1860,8 +1868,9 @@ def main():
         return
     print("✅ Connected (Drive + Sheets)")
 
-    print(f"\n🚀 Running all {len(TEST_SCRIPTS)} tests against PRODUCTION (weberranch.com)...")
-    asyncio.run(run_tests(TEST_SCRIPTS, drive_service, sheets_service))
+    label = f"first {args.limit}" if args.limit else "all"
+    print(f"\n🚀 Running {label} {len(tests)} tests against PRODUCTION (weberranch.com)...")
+    asyncio.run(run_tests(tests, drive_service, sheets_service))
     print("\n👋 Done!")
 
 
