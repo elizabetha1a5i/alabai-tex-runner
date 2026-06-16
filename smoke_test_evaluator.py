@@ -101,12 +101,9 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 }}"""
 
     try:
-        gemini = genai.Client(
-            api_key=api_key,
-            http_options={"api_version": "v1beta"},
-        )
+        gemini = genai.Client(api_key=api_key)
         response = gemini.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
         raw = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
