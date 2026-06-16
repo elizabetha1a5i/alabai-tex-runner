@@ -3,7 +3,12 @@ name: Tex QA Production Tests (weberranch.com)
 on:
   schedule:
     - cron: '0 10 * * *'   # 10am UTC daily (separate from staging run at 9am)
-  workflow_dispatch:        # manual trigger from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of tests to run (leave blank for all 100)'
+        required: false
+        default: ''
 
 jobs:
   run-prod-tests:
@@ -34,4 +39,9 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python tex_qa_test_runner_prod.py
+          LIMIT="${{ github.event.inputs.limit }}"
+          if [ -n "$LIMIT" ]; then
+            python tex_qa_test_runner_prod.py --limit "$LIMIT"
+          else
+            python tex_qa_test_runner_prod.py
+          fi
