@@ -88,21 +88,47 @@ CATEGORY_TO_RESPONSE_TYPES = {
 # ============================================================================
 
 def get_google_services():
+    import json as _json
     creds = None
-    if os.path.exists(TOKEN_FILE):
+
+    if os.path.exists("token.json"):
+        with open("token.json") as f:
+            d = _json.load(f)
+        creds = Credentials(
+            token=d.get("token"),
+            refresh_token=d.get("refresh_token"),
+            token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=d.get("client_id"),
+            client_secret=d.get("client_secret"),
+            scopes=d.get("scopes"),
+        )
+    elif os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "rb") as f:
             creds = pickle.load(f)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+
+    if creds and creds.refresh_token:
+        try:
             creds.refresh(Request())
-        else:
-            if not os.path.exists(CREDENTIALS_FILE):
-                print("\n❌ credentials.json not found!")
-                return None, None
-            flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+        except Exception as e:
+            print(f"  ⚠️  Token refresh failed: {e}")
+            creds = None
+
+    if not creds:
+        if not os.path.exists(CREDENTIALS_FILE):
+            print("\n❌ credentials.json not found and token refresh failed!")
+            return None, None
+        flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=0)
+        with open("token.json", "w") as f:
+            _json.dump({
+                "token":         creds.token,
+                "refresh_token": creds.refresh_token,
+                "token_uri":     creds.token_uri,
+                "client_id":     creds.client_id,
+                "client_secret": creds.client_secret,
+                "scopes":        list(creds.scopes),
+            }, f)
+
     return build("drive", "v3", credentials=creds), build("sheets", "v4", credentials=creds)
 
 

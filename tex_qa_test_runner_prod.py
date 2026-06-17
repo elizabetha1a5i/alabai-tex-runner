@@ -120,6 +120,20 @@ WIDGET_CONTAINER_SELECTORS = [
     '[class*="chat-popup"]',
 ]
 
+CONSENT_OPENER_TEMPLATE = (
+    "Hi, I'm {name}, {age}, DOB {dob}, phone {phone}. "
+    "I agree to receive recurring SMS messages from Weber Ranch. "
+    "Message and data rates may apply. "
+)
+
+CUSTOM_TEST_IDENTITIES = [
+    {"name": "Alex",   "age": 28, "dob": "14/03/1998", "phone": "555-9001"},
+    {"name": "Jordan", "age": 34, "dob": "22/07/1991", "phone": "555-9002"},
+    {"name": "Morgan", "age": 41, "dob": "08/11/1984", "phone": "555-9003"},
+    {"name": "Casey",  "age": 26, "dob": "01/05/2000", "phone": "555-9004"},
+    {"name": "Taylor", "age": 52, "dob": "19/09/1973", "phone": "555-9005"},
+]
+
 CATEGORY_TO_RESPONSE_TYPES = {
     "Cocktails":   ["suggestion", "recipe"],
     "Personas":    ["persona"],
@@ -137,21 +151,51 @@ CATEGORY_TO_RESPONSE_TYPES = {
 # ============================================================================
 
 def get_google_services():
+    import json as _json
     creds = None
-    if os.path.exists(TOKEN_FILE):
+
+    # Prefer token.json (plain JSON — works in CI and locally).
+    # Fall back to token.pickle for backwards compatibility.
+    if os.path.exists("token.json"):
+        with open("token.json") as f:
+            d = _json.load(f)
+        creds = Credentials(
+            token=d.get("token"),
+            refresh_token=d.get("refresh_token"),
+            token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=d.get("client_id"),
+            client_secret=d.get("client_secret"),
+            scopes=d.get("scopes"),
+        )
+    elif os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "rb") as f:
             creds = pickle.load(f)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+
+    if creds and creds.refresh_token:
+        # Always force a refresh — access token expires every hour,
+        # refresh token does not expire.
+        try:
             creds.refresh(Request())
-        else:
-            if not os.path.exists(CREDENTIALS_FILE):
-                print("\n❌ credentials.json not found!")
-                return None, None
-            flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+        except Exception as e:
+            print(f"  ⚠️  Token refresh failed: {e}")
+            creds = None
+
+    if not creds:
+        if not os.path.exists(CREDENTIALS_FILE):
+            print("\n❌ credentials.json not found and token refresh failed!")
+            return None, None
+        flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=0)
+        with open("token.json", "w") as f:
+            _json.dump({
+                "token":         creds.token,
+                "refresh_token": creds.refresh_token,
+                "token_uri":     creds.token_uri,
+                "client_id":     creds.client_id,
+                "client_secret": creds.client_secret,
+                "scopes":        list(creds.scopes),
+            }, f)
+
     return build("drive", "v3", credentials=creds), build("sheets", "v4", credentials=creds)
 
 
@@ -1943,7 +1987,7 @@ def main():
                         help="Run only the first N tests (e.g. --limit 1 to smoke-test the pipeline)")
     args = parser.parse_args()
 
-    tests = TEST_SCRIPTS[:args.limit] if args.limit else TEST_SCRIPTS
+    base_tests = TEST_SCRIPTS[:args.limit] if args.limit else TEST_SCRIPTS
 
     print("\n🔐 Connecting to Google...")
     drive_service, sheets_service = get_google_services()
@@ -1952,8 +1996,28 @@ def main():
         return
     print("✅ Connected (Drive + Sheets)")
 
+    # Prepend consent opener to the first message of every test so the
+    # sign-up gate doesn't block the conversation.
+    identities = CUSTOM_TEST_IDENTITIES
+    tests = []
+    for idx, test in enumerate(base_tests):
+        identity = identities[idx % len(identities)]
+        prefix = CONSENT_OPENER_TEMPLATE.format(
+            name=identity["name"],
+            age=identity["age"],
+            dob=identity["dob"],
+            phone=identity["phone"],
+        )
+        turns = []
+        for i, turn in enumerate(test["conversation"]):
+            if i == 0:
+                turns.append({"user": prefix + turn["user"], "wait_for_response": True})
+            else:
+                turns.append(turn)
+        tests.append({**test, "conversation": turns})
+
     label = f"first {args.limit}" if args.limit else "all"
-    print(f"\n🚀 Running {label} {len(tests)} tests against PRODUCTION (weberranch.com)...")
+    print(f"\n🚀 Running {label} {len(tests)} tests against PRODUCTION...")
     asyncio.run(run_tests(tests, drive_service, sheets_service))
     print("\n👋 Done!")
 
