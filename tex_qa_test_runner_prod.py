@@ -157,16 +157,24 @@ def get_google_services():
     # Prefer token.json (plain JSON — works in CI and locally).
     # Fall back to token.pickle for backwards compatibility.
     if os.path.exists("token.json"):
-        with open("token.json") as f:
-            d = _json.load(f)
-        creds = Credentials(
-            token=d.get("token"),
-            refresh_token=d.get("refresh_token"),
-            token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
-            client_id=d.get("client_id"),
-            client_secret=d.get("client_secret"),
-            scopes=d.get("scopes"),
-        )
+        try:
+            with open("token.json") as f:
+                raw = f.read().strip()
+            if not raw:
+                raise ValueError("token.json is empty")
+            d = _json.loads(raw)
+        except Exception as e:
+            print(f"  ⚠️  token.json unreadable ({e}) — will try OAuth flow")
+            d = {}
+        if d.get("refresh_token"):
+            creds = Credentials(
+                token=d.get("token"),
+                refresh_token=d.get("refresh_token"),
+                token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
+                client_id=d.get("client_id"),
+                client_secret=d.get("client_secret"),
+                scopes=d.get("scopes"),
+            )
     elif os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "rb") as f:
             creds = pickle.load(f)
