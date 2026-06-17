@@ -205,7 +205,6 @@ def get_google_services():
 
 def _sheet_rows(sheets_service, range_name):
     gid_map = {
-        "weber_ranch_qa_criteria": 196230922,
         "weber_ranch_products":    1372206394,
         "weber_ranch_ingredients": 2095103600,
         "weber_ranch_recipes":     1519025276,
@@ -246,30 +245,30 @@ def _sheet_rows(sheets_service, range_name):
         return [], []
 
 
-def load_criteria(sheets_service):
-    headers, rows = _sheet_rows(sheets_service, CRITERIA_RANGE)
-    criteria = {}
-    for row in rows:
-        while len(row) < 6:
-            row.append("")
-        cid, name, _, rule, severity, applies_raw = row[:6]
-        cid = cid.strip()
-        if not cid or not rule.strip():
-            continue
-        applies_to = [a.strip() for a in applies_raw.split(",") if a.strip()]
-        if not applies_to:
-            applies_to = ["recipe", "suggestion", "persona", "safety", "security"]
-        criteria[cid] = {
-            "name":       name.strip(),
-            "severity":   severity.strip() or "Medium",
-            "rule":       rule.strip(),
-            "applies_to": applies_to,
-        }
-    print(f"  ✅ {len(criteria)} criteria loaded")
-    return criteria
+_KB_DIR = os.path.join(os.path.dirname(__file__), "kb")
+
+
+def _load_kb_json(filename):
+    path = os.path.join(_KB_DIR, filename)
+    if os.path.exists(path):
+        import json as _json
+        with open(path, encoding="utf-8") as f:
+            return _json.load(f)
+    return None
 
 
 def load_approved_urls(sheets_service):
+    # Try local kb/recipes.json first
+    local = _load_kb_json("recipes.json")
+    if local is not None:
+        urls = set()
+        for r in local:
+            url = re.sub(r"\s+", "", r.get("url", "").strip()).rstrip("/")
+            if url.startswith("http"):
+                urls.add(url)
+        print(f"  ✅ {len(urls)} approved recipe URLs loaded (local kb/)")
+        return urls
+
     headers_raw, rows = _sheet_rows(sheets_service, RECIPES_RANGE)
     if not headers_raw:
         print("⚠️  Could not load approved URLs from recipes sheet")
@@ -290,6 +289,12 @@ def load_approved_urls(sheets_service):
 
 
 def load_recipes(sheets_service):
+    # Try local kb/recipes.json first
+    local = _load_kb_json("recipes.json")
+    if local is not None:
+        print(f"  ✅ {len(local)} recipes loaded (local kb/)")
+        return local
+
     headers_raw, rows = _sheet_rows(sheets_service, RECIPES_RANGE)
     if not headers_raw:
         print("⚠️  Recipes sheet empty or unreadable")
@@ -323,6 +328,12 @@ def load_recipes(sheets_service):
 
 
 def load_brand_facts(sheets_service):
+    # Try local kb/brand_facts.json first
+    local = _load_kb_json("brand_facts.json")
+    if local is not None:
+        print(f"  ✅ {len(local)} brand facts loaded (local kb/)")
+        return local
+
     _, rows = _sheet_rows(sheets_service, FACTS_RANGE)
     facts = []
     for row in rows:
@@ -334,6 +345,24 @@ def load_brand_facts(sheets_service):
             facts.append(fact)
     print(f"  ✅ {len(facts)} brand facts loaded")
     return facts
+
+
+def load_ingredients(sheets_service):
+    # Try local kb/ingredients.json first
+    local = _load_kb_json("ingredients.json")
+    if local is not None:
+        print(f"  ✅ {len(local)} ingredients loaded (local kb/)")
+        return local
+
+    _, rows = _sheet_rows(sheets_service, INGREDIENTS_RANGE)
+    ingredients = []
+    for row in rows:
+        name = row[0].strip() if len(row) > 0 else ""
+        note = row[1].strip() if len(row) > 1 else ""
+        if name:
+            ingredients.append({"name": name, "note": note})
+    print(f"  ✅ {len(ingredients)} ingredients loaded")
+    return ingredients
 
 
 # ============================================================================
@@ -1886,6 +1915,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
     approved_urls = load_approved_urls(sheets_service)
     recipes       = load_recipes(sheets_service)
     brand_facts   = load_brand_facts(sheets_service)
+    ingredients   = load_ingredients(sheets_service)
 
     # Pre-load prompt files from the MAIN repo, keyed by category
     print("\n📂 Loading prompt files from MAIN repo...")
