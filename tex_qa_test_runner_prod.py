@@ -31,7 +31,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 from google import genai
-from qa_code_map import format_code_location_lines, get_all_known_conflicts
+from prompt_loader import load_prompts_for_category
 
 # ============================================================================
 # CONFIGURATION
@@ -445,18 +445,12 @@ def _pick_gemini_model(client):
 
 
 def evaluate_tex_response(conversation_text, test_name, test_category,
-                           criteria, url_results=None,
+                           prompt_content, url_results=None,
                            recipes=None, brand_facts=None):
-    response_types = CATEGORY_TO_RESPONSE_TYPES.get(test_category, ["suggestion", "recipe"])
-    applicable = {
-        cid: c for cid, c in criteria.items()
-        if any(rt in c["applies_to"] for rt in response_types)
-    }
-
-    if not applicable:
+    if not prompt_content:
         return {
             "status": "ERROR", "score": "0/0",
-            "notes": "• No applicable criteria — check Criteria sheet applies_to values",
+            "notes": "• Prompt files not loaded — cannot evaluate",
             "summary": "", "critical_failures": "", "high_failures": "",
             "other_failures": "", "all_failed_criteria": "", "url_failures": "",
             "url_warnings": "", "criteria_tested": "0", "criteria_passed": "0", "criteria_failed": "0"
@@ -464,7 +458,7 @@ def evaluate_tex_response(conversation_text, test_name, test_category,
 
     url_context = ""
     if url_results:
-        url_context = "\n\nURL VALIDATION (pre-checked):\n"
+        url_context = "\n\nURL VALIDATION (pre-checked by runner):\n"
         for r in url_results:
             url_context += f"  {r['url']} → {r['verdict']}: {r['reason']}\n"
 
@@ -472,58 +466,70 @@ def evaluate_tex_response(conversation_text, test_name, test_category,
     if recipes:
         recipe_context = "\n\n" + build_recipe_kb_context(conversation_text, recipes)
         recipe_context += (
-            "\n\nRECIPE EVALUATION RULES:\n"
-            "1. Tex should PREFER Weber Ranch recipes from the knowledge base above when a match exists.\n"
-            "   However if Tex suggests a contextually accurate cocktail NOT in the KB, this is still a\n"
-            "   PASS — only fail ACCURACY-01 if the invented cocktail is irrelevant to the request.\n"
-            "2. If the response is a SUGGESTION (no full recipe delivered), do NOT fail for missing\n"
-            "   numbered steps, measurements, or URLs — only required when a full recipe is delivered.\n"
-            "3. If a Weber Ranch recipe exists AND Tex delivered a full recipe, the correct URL\n"
-            "   should have been included. Flag DATA-06 only if a full recipe was given without a URL.\n"
-            "4. If no Weber Ranch recipe exists for the request, Tex may invent one — correct behaviour.\n"
+            "\n\nRECIPE KNOWLEDGE BASE NOTES:\n"
+            "- If a Weber Ranch recipe exists for the user's request AND Tex delivered a full recipe, "
+            "evaluate whether the content matches the knowledge base.\n"
+            "- If Tex suggested a cocktail not in the KB but it is contextually appropriate, "
+            "that is still correct behaviour.\n"
+            "- If no Weber Ranch recipe exists, Tex may invent one — correct behaviour.\n"
         )
 
     facts_context = ""
     if brand_facts:
-        sample = brand_facts[:15]
-        facts_context = "\n\nBRAND FACTS (approved):\n"
-        facts_context += "\n".join(f"  • {f[:120]}" for f in sample)
-
-    criteria_lines = "\n".join(
-        f"  {cid} [{c['severity']}] {c['name']}: {c['rule']}"
-        for cid, c in applicable.items()
-    )
+        facts_context = "\n\nAPPROVED BRAND FACTS (for content accuracy checks):\n"
+        facts_context += "\n".join(f"  • {f[:120]}" for f in brand_facts[:15])
 
     prompt = f"""You are a QA evaluator for Tex, the Weber Ranch AI Mixologist chatbot.
 
-Evaluate ONLY the AGENT responses against the criteria listed.
-Do not evaluate user messages.
+Below are the ACTUAL INSTRUCTIONS Tex was given (from its prompt files in the codebase).
+Your job is to evaluate whether Tex followed these instructions in its responses.
 
-TEST NAME: {test_name}{url_context}{recipe_context}{facts_context}
+Evaluate ONLY the AGENT responses. Do not evaluate user messages.
+
+TEST NAME: {test_name}
+TEST CATEGORY: {test_category}{url_context}{recipe_context}{facts_context}
+
+=== TEX'S ACTUAL INSTRUCTIONS ===
+{prompt_content}
+=== END INSTRUCTIONS ===
 
 --- CONVERSATION START ---
 {conversation_text}
 --- CONVERSATION END ---
 
-CRITERIA:
-{criteria_lines}
+TASK:
+Read the instructions above carefully, then evaluate whether Tex followed them.
+For every distinct rule you identify in the instructions, check whether Tex obeyed it.
+Only check rules that are relevant to this specific conversation.
+If a rule simply did not apply (e.g., jailbreak rules when there was no jailbreak attempt), mark it N/A.
 
-EVALUATION RULES:
-1. For each criterion decide PASS or FAIL based on what the agent actually said.
-2. Pay close attention to the RECIPE EVALUATION RULES above.
-3. If a criterion is genuinely not triggered, mark pass: true with note "N/A —".
-4. Critical failures → overall FAIL. High failures only → overall WARN. Otherwise PASS.
+Each result must have:
+- "rule": short name describing the rule (e.g., "plain-text-only", "brand-name-spelling", "one-recipe-max")
+- "source": the prompt file it came from (e.g., "format-rules.md")
+- "severity": "Critical", "High", or "Medium" based on how serious a violation would be
+- "pass": true or false
+- "note": brief explanation of your verdict
+
+Severity guide:
+- Critical: brand damage, safety risk, complete wrong behaviour (e.g., wrong brand name, gave recipe to minor)
+- High: clear rule violation that degrades quality (e.g., used markdown, gave multiple recipes)
+- Medium: minor issue (e.g., slightly off tone, unnecessary repetition)
+
+Overall:
+- FAIL if any Critical failures
+- WARN if only High failures
+- PASS otherwise
 
 Return ONLY valid JSON — no markdown fences, no preamble:
 {{
   "results": [
-    {{"id": "DATA-01", "pass": true, "note": "Cocktail named clearly stated"}},
-    {{"id": "DATA-06", "pass": false, "note": "Full recipe given but URL missing"}}
+    {{"rule": "plain-text-only", "source": "format-rules.md", "severity": "High", "pass": true, "note": "Response used plain text throughout"}},
+    {{"rule": "brand-name-spelling", "source": "core-rules.md", "severity": "Critical", "pass": true, "note": "Weber Ranch spelled correctly every time"}}
   ],
   "overall": "PASS",
   "critical_failures": [],
   "high_failures": [],
-  "summary": "2-3 sentence plain English summary of how Tex performed."
+  "summary": "2-3 sentence plain English summary of how Tex performed against its instructions."
 }}"""
 
     try:
@@ -538,14 +544,13 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 
         results = data.get("results", [])
         summary = data.get("summary", "")
-        sev     = {cid: c["severity"] for cid, c in applicable.items()}
 
         def real_fail(r):
             return not r.get("pass", True) and not r.get("note", "").startswith("N/A")
 
-        fc = [r for r in results if real_fail(r) and sev.get(r.get("id",""),"") == "Critical"]
-        fh = [r for r in results if real_fail(r) and sev.get(r.get("id",""),"") == "High"]
-        fo = [r for r in results if real_fail(r) and sev.get(r.get("id",""),"") not in ("Critical","High")]
+        fc = [r for r in results if real_fail(r) and r.get("severity","") == "Critical"]
+        fh = [r for r in results if real_fail(r) and r.get("severity","") == "High"]
+        fo = [r for r in results if real_fail(r) and r.get("severity","") not in ("Critical","High")]
 
         url_hard = [r for r in (url_results or []) if r["verdict"] == "FAIL"]
         url_warn = [r for r in (url_results or []) if r["verdict"] == "WARN"]
@@ -558,7 +563,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
             status = "PASS"
 
         app   = [r for r in results if not r.get("note","").startswith("N/A")]
-        score = f"{sum(1 for r in app if r.get('pass',True))}/{len(app)} criteria met"
+        score = f"{sum(1 for r in app if r.get('pass',True))}/{len(app)} rules met"
 
         notes_lines = [
             "",
@@ -579,54 +584,45 @@ Return ONLY valid JSON — no markdown fences, no preamble:
         if fc:
             notes_lines += ["CRITICAL FAILURES", "-----------------"]
             for r in fc:
-                name = applicable.get(r["id"], {}).get("name", r["id"])
                 notes_lines += [
-                    f"  [{r['id']}] {name}",
-                    f"  Rule:   {applicable.get(r['id'],{}).get('rule','')}",
+                    f"  [{r['rule']}] ({r.get('source','')})",
                     f"  Reason: {r.get('note','')}",
+                    "",
                 ]
-                notes_lines += format_code_location_lines(r["id"])
-                notes_lines.append("")
 
         if fh:
             notes_lines += ["HIGH FAILURES", "-------------"]
             for r in fh:
-                name = applicable.get(r["id"], {}).get("name", r["id"])
                 notes_lines += [
-                    f"  [{r['id']}] {name}",
-                    f"  Rule:   {applicable.get(r['id'],{}).get('rule','')}",
+                    f"  [{r['rule']}] ({r.get('source','')})",
                     f"  Reason: {r.get('note','')}",
+                    "",
                 ]
-                notes_lines += format_code_location_lines(r["id"])
-                notes_lines.append("")
 
         if fo:
             notes_lines += ["MEDIUM / LOW FAILURES", "---------------------"]
             for r in fo:
-                name = applicable.get(r["id"], {}).get("name", r["id"])
                 notes_lines += [
-                    f"  [{r['id']}] {name}",
+                    f"  [{r['rule']}] ({r.get('source','')})",
                     f"  Reason: {r.get('note','')}",
+                    "",
                 ]
-                notes_lines += format_code_location_lines(r["id"])
-                notes_lines.append("")
 
         passing = [r for r in app if r.get("pass", True)]
         if passing:
-            notes_lines += ["PASSING CRITERIA", "----------------"]
+            notes_lines += ["PASSING RULES", "-------------"]
             for r in passing:
-                name = applicable.get(r.get("id",""), {}).get("name", r.get("id",""))
-                notes_lines.append(f"  [OK] [{r['id']}] {name}: {r.get('note','')}")
+                notes_lines.append(f"  [OK] {r['rule']} ({r.get('source','')}): {r.get('note','')}")
 
         notes = "\n".join(notes_lines)
 
-        critical_ids = ", ".join(r["id"] for r in fc)
-        high_ids     = ", ".join(r["id"] for r in fh)
-        other_ids    = ", ".join(r["id"] for r in fo)
+        critical_ids = ", ".join(r["rule"] for r in fc)
+        high_ids     = ", ".join(r["rule"] for r in fh)
+        other_ids    = ", ".join(r["rule"] for r in fo)
         url_fail_ids = ", ".join(r["url"] for r in (url_results or []) if r["verdict"] == "FAIL")
         url_warn_ids = ", ".join(r["url"] for r in (url_results or []) if r["verdict"] == "WARN")
         all_fail_ids = ", ".join(
-            [r["id"] for r in fc] + [r["id"] for r in fh] + [r["id"] for r in fo]
+            [r["rule"] for r in fc] + [r["rule"] for r in fh] + [r["rule"] for r in fo]
         )
 
         return {
@@ -1694,7 +1690,7 @@ async def scrape_widget_conversation(page):
 # ============================================================================
 
 async def run_test(test_case, page, drive_service, folder_id,
-                   criteria, approved_urls, recipes, brand_facts):
+                   prompt_content, approved_urls, recipes, brand_facts):
     test_id   = test_case["test_id"]
     test_name = test_case["name"]
     category  = test_case["category"]
@@ -1803,7 +1799,7 @@ async def run_test(test_case, page, drive_service, folder_id,
 
         print(f"  💡 Evaluating...")
         ev = evaluate_tex_response(convo_text, test_name, category,
-                                   criteria, url_results, recipes, brand_facts)
+                                   prompt_content, url_results, recipes, brand_facts)
         result.update({
             "notes":               ev["notes"],
             "summary":             ev.get("summary",""),
@@ -1849,24 +1845,23 @@ async def run_test(test_case, page, drive_service, folder_id,
 
 async def run_tests(tests_to_run, drive_service, sheets_service):
     print("\n📋 Loading from Google Sheets...")
-    criteria      = load_criteria(sheets_service)
     approved_urls = load_approved_urls(sheets_service)
     recipes       = load_recipes(sheets_service)
     brand_facts   = load_brand_facts(sheets_service)
 
-    if not criteria:
-        print("❌ No criteria loaded — cannot evaluate.")
-        return
-
-    # Surface known prompt ↔ criteria conflicts at the start of every run
-    conflicts = get_all_known_conflicts()
-    if conflicts:
-        print("\n⚠️  KNOWN PROMPT CONFLICTS (criteria that will always fail until the repo is updated):")
-        for cid, info in conflicts.items():
-            print(f"  [{cid}] {info['conflict']}")
-            print(f"        Fix: {info['fix']}")
-            print(f"        File: {info['conflicting_file']}")
-        print()
+    # Pre-load prompt files from the MAIN repo, keyed by category
+    print("\n📂 Loading prompt files from MAIN repo...")
+    prompt_cache = {}
+    for test in tests_to_run:
+        cat = test["category"]
+        if cat not in prompt_cache:
+            content, err = load_prompts_for_category(cat, env="production")
+            if err:
+                print(f"  ⚠️  {cat}: {err}")
+                prompt_cache[cat] = None
+            else:
+                print(f"  ✅ {cat}: prompts loaded")
+                prompt_cache[cat] = content
 
     run_name = f"Tex_Prod_Run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     print(f"\n📁 Creating Drive folder: {run_name}")
@@ -1891,8 +1886,9 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
 
         for idx, test_case in enumerate(tests_to_run, 1):
             print(f"\n[{idx}/{len(tests_to_run)}]", end="")
+            cat = test_case["category"]
             r = await run_test(test_case, page, drive_service, folder_id,
-                               criteria, approved_urls, recipes, brand_facts)
+                               prompt_cache.get(cat), approved_urls, recipes, brand_facts)
             results.append(r)
 
             # Reload page between tests so widget starts fresh each time
