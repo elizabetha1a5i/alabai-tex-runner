@@ -55,9 +55,16 @@ jobs:
 
       - name: Generate QA snapshot JSON
         run: |
+          if [ ! -f tex_prod_results.csv ]; then
+            echo "WARNING: tex_prod_results.csv not found — skipping snapshot"
+            ls -la *.csv 2>/dev/null || echo "No CSV files in working directory"
+            exit 0
+          fi
           python generate_qa_snapshot.py \
             --csv tex_prod_results.csv \
             --out cyphr-flow/reports/qa_results.json \
+            --environment production \
+            --test-type criteria \
             --label "$(date +'%B %Y')"
 
       - name: Copy dashboard page to cyphr-flow

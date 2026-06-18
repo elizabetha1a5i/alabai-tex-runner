@@ -126,6 +126,22 @@ CONSENT_OPENER_TEMPLATE = (
     "Message and data rates may apply. "
 )
 
+# Phrases that indicate Tex is asking for user identity / PPI data
+_PPI_REQUEST_PHRASES = [
+    "what's your name", "what is your name", "your name",
+    "date of birth", "dob", "birthday", "born",
+    "how old are you", "your age", "age verification",
+    "phone number", "your number", "confirm your",
+    "verify your", "who are you", "introduce yourself",
+    "can i get your", "could i get your", "please provide your",
+    "share your", "tell me your",
+]
+
+def _tex_is_requesting_ppi(tex_response_text: str) -> bool:
+    """Return True if Tex's latest response appears to be asking for user PPI."""
+    lower = tex_response_text.lower()
+    return any(phrase in lower for phrase in _PPI_REQUEST_PHRASES)
+
 CUSTOM_TEST_IDENTITIES = [
     {"name": "Alex",   "age": 28, "dob": "14/03/1998", "phone": "555-9001"},
     {"name": "Jordan", "age": 34, "dob": "22/07/1991", "phone": "555-9002"},
@@ -1815,6 +1831,27 @@ async def run_test(test_case, page, drive_service, folder_id,
         turn_num     = 0
 
         # ── STEP 2: Run each conversation turn ──────────────────────────────
+        ppi_sent = False  # only send identity once, when Tex asks for it
+        identity = test_case.get("identity")  # set by main() per-test
+
+        async def _send_message(user_input):
+            nonlocal current_text, total_time, partial
+            await wait_for_widget_input_enabled(page, 15000)
+            elem = await find_widget_input(page)
+            if not elem:
+                return False
+            await elem.click()
+            await elem.fill("")
+            await elem.fill(user_input)
+            await elem.press("Enter")
+            rt, _ = await wait_for_response_completion(page, current_text)
+            total_time  += rt
+            current_text = await _get_widget_text(page)
+            partial = await scrape_widget_conversation(page)
+            await page.wait_for_timeout(1000)
+            print(f"    ✓ {rt:.1f}s")
+            return True
+
         for turn in test_case["conversation"]:
             turn_num += 1
             user_input = turn["user"]
@@ -1839,6 +1876,18 @@ async def run_test(test_case, page, drive_service, folder_id,
                     total_time  += rt
                     current_text = await _get_widget_text(page)
                     print(f"    ✓ {rt:.1f}s")
+
+                    # If Tex is asking for PPI and we haven't sent it yet, reply now
+                    if not ppi_sent and identity and _tex_is_requesting_ppi(current_text):
+                        ppi_reply = CONSENT_OPENER_TEMPLATE.format(
+                            name=identity["name"],
+                            age=identity["age"],
+                            dob=identity["dob"],
+                            phone=identity["phone"],
+                        )
+                        print(f"  [PPI] Tex requested identity — sending profile data")
+                        await _send_message(ppi_reply)
+                        ppi_sent = True
 
                 partial = await scrape_widget_conversation(page)
                 await page.wait_for_timeout(1000)
@@ -2047,17 +2096,8 @@ def main():
     tests = []
     for idx, test in enumerate(base_tests):
         identity = identities[idx % len(identities)]
-        prefix = CONSENT_OPENER_TEMPLATE.format(
-            name=identity["name"],
-            age=identity["age"],
-            dob=identity["dob"],
-            phone=identity["phone"],
-        )
-        # Send consent as its own turn first so Tex can acknowledge it,
-        # then the actual test question arrives as a clean separate message.
-        turns = [{"user": prefix, "wait_for_response": True}]
-        turns.extend(test["conversation"])
-        tests.append({**test, "conversation": turns})
+        # Attach identity to the test — runner will send it only if Tex asks for it
+        tests.append({**test, "identity": identity})
 
     label = f"first {args.limit}" if args.limit else "all"
     print(f"\n🚀 Running {label} {len(tests)} tests against PRODUCTION...")

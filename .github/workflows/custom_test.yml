@@ -61,3 +61,36 @@ jobs:
           CUSTOM_TEST_NAME: ${{ github.event.inputs.test_name }}
           CUSTOM_TEST_DESCRIPTION: ${{ github.event.inputs.test_description }}
         run: xvfb-run python tex_custom_test_runner.py
+
+      - name: Checkout cyphr-flow for dashboard publish
+        uses: actions/checkout@v4
+        with:
+          repository: elizabetha1a5i/cyphr-flow
+          ssh-key: ${{ secrets.CYPHR_FLOW_DEPLOY_KEY }}
+          path: cyphr-flow
+
+      - name: Generate QA snapshot JSON
+        run: |
+          if [ ! -f tex_custom_results.csv ]; then
+            echo "WARNING: tex_custom_results.csv not found — skipping snapshot"
+            ls -la *.csv 2>/dev/null || echo "No CSV files in working directory"
+            exit 0
+          fi
+          python generate_qa_snapshot.py \
+            --csv tex_custom_results.csv \
+            --out cyphr-flow/reports/qa_results.json \
+            --environment ${{ github.event.inputs.environment }} \
+            --test-type custom \
+            --label "$(date +'%B %Y')"
+
+      - name: Copy dashboard page to cyphr-flow
+        run: cp qa-dashboard.html cyphr-flow/qa-dashboard.html
+
+      - name: Publish dashboard to cyphr-flow
+        run: |
+          cd cyphr-flow
+          git config user.name  "Alibi AI"
+          git config user.email "ci@alibi.ai"
+          git add reports/qa_results.json qa-dashboard.html
+          git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — custom test: ${{ github.event.inputs.test_name }}"
+          git push

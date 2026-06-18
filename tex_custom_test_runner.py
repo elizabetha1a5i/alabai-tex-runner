@@ -11,6 +11,7 @@ Alibi AI — Feedback Test Runner v3 for Weber GPT (Tex)
 """
 
 import asyncio
+import csv
 import json
 import os
 import re
@@ -556,6 +557,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
     print(f"[OK] {folder_url}")
 
     total_pass = total_fail = total_error = 0
+    csv_rows = []
 
     async with async_playwright() as pw:
         os.makedirs(BROWSER_CONTEXT_PATH, exist_ok=True)
@@ -639,6 +641,18 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                 elif pass_fail == "FAIL":
                     total_fail += 1
 
+                csv_rows.append({
+                    "test_id":    run_id,
+                    "name":       issue["description"][:80],
+                    "category":   issue.get("source", "Feedback"),
+                    "date":       datetime.now().strftime("%Y-%m-%d"),
+                    "environment": os.environ.get("TEST_ENVIRONMENT", "staging"),
+                    "status":     pass_fail,
+                    "score":      "",
+                    "notes":      notes,
+                    "summary":    notes,
+                })
+
                 # Write to sheet
                 try:
                     next_row = get_next_log_row(sheets_service)
@@ -665,6 +679,15 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
 
         await browser.close()
 
+    if csv_rows:
+        csv_path = "tex_custom_results.csv"
+        fieldnames = ["test_id", "name", "category", "date", "environment", "status", "score", "notes", "summary"]
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csv_rows)
+        print(f"\n[CSV] Results saved: {csv_path}")
+
     total = total_pass + total_fail + total_error
     print(f"\n{'='*70}")
     print(f"[STATS] ALIBI AI — RUN COMPLETE")
@@ -687,6 +710,7 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
 
     feedback_id  = f"CUSTOM-{safe_name.upper()}"
     total_pass = total_fail = total_error = 0
+    csv_rows = []
 
     async with async_playwright() as pw:
         os.makedirs(BROWSER_CONTEXT_PATH, exist_ok=True)
@@ -757,6 +781,18 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
             elif pass_fail == "FAIL":
                 total_fail += 1
 
+            csv_rows.append({
+                "test_id":    run_id,
+                "name":       test_name,
+                "category":   "Custom",
+                "date":       datetime.now().strftime("%Y-%m-%d"),
+                "environment": os.environ.get("TEST_ENVIRONMENT", "staging"),
+                "status":     pass_fail,
+                "score":      "",
+                "notes":      notes,
+                "summary":    notes,
+            })
+
             try:
                 next_row = get_next_log_row(sheets_service)
                 write_log_row(
@@ -781,6 +817,15 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
                 print(f"  [WARN]  Could not write to sheet: {e}")
 
         await browser.close()
+
+    if csv_rows:
+        csv_path = "tex_custom_results.csv"
+        fieldnames = ["test_id", "name", "category", "date", "environment", "status", "score", "notes", "summary"]
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csv_rows)
+        print(f"\n[CSV] Results saved: {csv_path}")
 
     total = total_pass + total_fail + total_error
     print(f"\n{'='*70}")

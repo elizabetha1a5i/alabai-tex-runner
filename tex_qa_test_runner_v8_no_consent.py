@@ -65,6 +65,20 @@ CONSENT_OPENER_TEMPLATE = (
     "Message and data rates may apply. "
 )
 
+_PPI_REQUEST_PHRASES = [
+    "what's your name", "what is your name", "your name",
+    "date of birth", "dob", "birthday", "born",
+    "how old are you", "your age", "age verification",
+    "phone number", "your number", "confirm your",
+    "verify your", "who are you", "introduce yourself",
+    "can i get your", "could i get your", "please provide your",
+    "share your", "tell me your",
+]
+
+def _tex_is_requesting_ppi(tex_response_text: str) -> bool:
+    lower = tex_response_text.lower()
+    return any(phrase in lower for phrase in _PPI_REQUEST_PHRASES)
+
 CUSTOM_TEST_IDENTITIES = [
     {"name": "Alex",   "age": 28, "dob": "14/03/1998", "phone": "555-9001"},
     {"name": "Jordan", "age": 34, "dob": "22/07/1991", "phone": "555-9002"},
@@ -1041,6 +1055,33 @@ async def run_test(test_case, page, drive_service, folder_id,
         turn_num      = 0
         total_time    = 0
         partial       = None
+        ppi_sent      = False
+        identity      = test_case.get("identity")
+
+        async def _send_raw(user_input):
+            nonlocal total_time, partial, initial_count
+            if not await wait_for_input_enabled(page, 15000):
+                await wait_for_input_enabled(page, 10000)
+            elem = None
+            for sel in ['input[placeholder*="message"]', 'input[type="text"]',
+                        'textarea', '[contenteditable="true"]']:
+                elem = await page.query_selector(sel)
+                if elem:
+                    break
+            if not elem:
+                return False
+            await elem.click()
+            await elem.fill("")
+            await elem.fill(user_input)
+            await elem.press("Enter")
+            rt, mc = await wait_for_response_completion(page, initial_count)
+            total_time += rt
+            if mc:
+                initial_count = mc
+            partial = await scrape_conversation(page)
+            await page.wait_for_timeout(1000)
+            print(f"    ✓ {rt:.1f}s")
+            return True
 
         for turn in test_case["conversation"]:
             turn_num += 1
@@ -1074,6 +1115,19 @@ async def run_test(test_case, page, drive_service, folder_id,
                     if mc:
                         initial_count = mc
                     print(f"    ✓ {rt:.1f}s")
+
+                    # Send PPI only if Tex asks for it
+                    page_text = "".join(c.get("text", "") for c in (await scrape_conversation(page)))
+                    if not ppi_sent and identity and _tex_is_requesting_ppi(page_text):
+                        ppi_reply = CONSENT_OPENER_TEMPLATE.format(
+                            name=identity["name"],
+                            age=identity["age"],
+                            dob=identity["dob"],
+                            phone=identity["phone"],
+                        )
+                        print(f"  [PPI] Tex requested identity — sending profile data")
+                        await _send_raw(ppi_reply)
+                        ppi_sent = True
 
                 partial = await scrape_conversation(page)
                 await page.wait_for_timeout(1000)
@@ -1221,7 +1275,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
         print("\n⏹️  Closing...")
         await browser.close()
 
-    local_csv = "tex_results.csv"
+    local_csv = "tex_staging_results.csv"
     with open(local_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "test_id", "name", "category", "date", "environment",
@@ -1237,7 +1291,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
             writer.writerow(r)
 
     results_link = upload_to_drive(drive_service, local_csv, folder_id)
-    os.remove(local_csv)
+    # Keep tex_staging_results.csv on disk for generate_qa_snapshot.py
 
     total  = len(results)
     passed = sum(1 for r in results if r["status"]=="PASS")
@@ -1267,25 +1321,14 @@ def main():
         print("❌ Auth failed. Exiting.")
         return
     print("✅ Connected (Drive + Sheets)")
-    # Inject consent opener into first turn of every test
     identities = CUSTOM_TEST_IDENTITIES
-    tests_with_consent = []
+    tests_with_identity = []
     for idx, test in enumerate(TEST_SCRIPTS):
         identity = identities[idx % len(identities)]
-        prefix = CONSENT_OPENER_TEMPLATE.format(
-            name=identity["name"],
-            age=identity["age"],
-            dob=identity["dob"],
-            phone=identity["phone"],
-        )
-        # Send consent as its own turn first so Tex can acknowledge it,
-        # then the actual test question arrives as a clean separate message.
-        turns = [{"user": prefix, "wait_for_response": True}]
-        turns.extend(test["conversation"])
-        tests_with_consent.append({**test, "conversation": turns})
+        tests_with_identity.append({**test, "identity": identity})
 
-    print(f"\n🚀 Running all {len(tests_with_consent)} tests automatically...")
-    asyncio.run(run_tests(tests_with_consent, drive_service, sheets_service))
+    print(f"\n🚀 Running all {len(tests_with_identity)} tests automatically...")
+    asyncio.run(run_tests(tests_with_identity, drive_service, sheets_service))
     print("\n👋 Done!")
 
 

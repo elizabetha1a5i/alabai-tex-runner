@@ -22,21 +22,55 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright anthropic google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          pip install playwright google-genai google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
           playwright install chromium
           playwright install-deps chromium
 
       - name: Write Google credentials
         run: |
           echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
 
       - name: Install xvfb
         run: sudo apt-get install -y xvfb
 
       - name: Run Alibi Feedback Tests
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HEADLESS: "true"
+          TEST_ENVIRONMENT: staging
         run: |
           xvfb-run python alibi_feedback_runner_v3.py
+
+      - name: Checkout cyphr-flow for dashboard publish
+        uses: actions/checkout@v4
+        with:
+          repository: elizabetha1a5i/cyphr-flow
+          ssh-key: ${{ secrets.CYPHR_FLOW_DEPLOY_KEY }}
+          path: cyphr-flow
+
+      - name: Generate QA snapshot JSON
+        run: |
+          if [ ! -f tex_feedback_results.csv ]; then
+            echo "WARNING: tex_feedback_results.csv not found — skipping snapshot"
+            ls -la *.csv 2>/dev/null || echo "No CSV files in working directory"
+            exit 0
+          fi
+          python generate_qa_snapshot.py \
+            --csv tex_feedback_results.csv \
+            --out cyphr-flow/reports/qa_results.json \
+            --environment staging \
+            --test-type feedback \
+            --label "$(date +'%B %Y')"
+
+      - name: Copy dashboard page to cyphr-flow
+        run: cp qa-dashboard.html cyphr-flow/qa-dashboard.html
+
+      - name: Publish dashboard to cyphr-flow
+        run: |
+          cd cyphr-flow
+          git config user.name  "Alibi AI"
+          git config user.email "ci@alibi.ai"
+          git add reports/qa_results.json qa-dashboard.html
+          git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — staging feedback run"
+          git push

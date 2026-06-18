@@ -11,6 +11,7 @@ Alibi AI — Feedback Test Runner v3 for Weber GPT (Tex)
 """
 
 import asyncio
+import csv
 import json
 import os
 import re
@@ -25,7 +26,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-import anthropic
+from google import genai
 
 # ============================================================================
 # CONFIGURATION
@@ -156,29 +157,53 @@ def api_call_with_retry(fn, retries=3, delay=5):
                 raise
 
 
+_PREFERRED_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-001",
+    "gemini-1.5-flash",
+]
+
+def _pick_gemini_model():
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+    for model in _PREFERRED_MODELS:
+        try:
+            client.models.get(model=model)
+            return model
+        except Exception:
+            continue
+    return _PREFERRED_MODELS[0]
+
+_gemini_model = None
+
+def _gemini_generate(prompt, max_tokens=500):
+    global _gemini_model
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    client = genai.Client(api_key=api_key)
+    if _gemini_model is None:
+        _gemini_model = _pick_gemini_model()
+    response = client.models.generate_content(
+        model=_gemini_model,
+        contents=prompt,
+    )
+    return response.text.strip()
+
+
 def generate_scripted_test(issue, variant_num):
     """Generate a multi-turn scripted conversation to test the issue"""
-    client = anthropic.Anthropic()
-    def call():
-        return client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=500,
-            messages=[{"role": "user", "content": f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
+    prompt = f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
 
 Issue to test: "{issue['description']}"
 Variant number: {variant_num} of {VARIANTS_PER_ISSUE} (make each variant approach the issue differently)
 
 Generate a realistic multi-turn SMS conversation script (2-3 user messages) that would trigger this behaviour.
-Messages should be short and natural — like real SMS texts.
+Messages should be short and natural -- like real SMS texts.
 
 Return ONLY valid JSON:
 {{
   "turns": ["first message", "follow up if needed"],
   "expected": "what Tex should do correctly"
-}}"""}],
-        )
-    message = api_call_with_retry(call)
-    raw = message.content[0].text.strip()
+}}"""
+    raw = _gemini_generate(prompt, max_tokens=500)
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
@@ -186,13 +211,8 @@ Return ONLY valid JSON:
 
 
 def evaluate_response(page_text, issue_description, test_turns, expected):
-    client = anthropic.Anthropic()
     conversation = "\n".join([f"User: {t}" for t in test_turns])
-    def call():
-        return client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=300,
-            messages=[{"role": "user", "content": f"""You are a QA evaluator for Weber GPT (Tex).
+    prompt = f"""You are a QA evaluator for Weber GPT (Tex).
 
 ISSUE BEING TESTED: {issue_description}
 TEST CONVERSATION:
@@ -201,10 +221,8 @@ EXPECTED: {expected}
 TEX PAGE CONTENT: {page_text[:800]}
 
 Did Tex PASS or FAIL? Return ONLY valid JSON:
-{{"result": "PASS", "notes": "brief reason"}}"""}],
-        )
-    message = api_call_with_retry(call)
-    raw = message.content[0].text.strip()
+{{"result": "PASS", "notes": "brief reason"}}"""
+    raw = _gemini_generate(prompt, max_tokens=300)
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
@@ -404,6 +422,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
     print(f"✅ {folder_url}")
 
     total_pass = total_fail = total_error = 0
+    csv_rows = []
 
     async with async_playwright() as pw:
         os.makedirs(BROWSER_CONTEXT_PATH, exist_ok=True)
@@ -487,6 +506,18 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                 elif pass_fail == "FAIL":
                     total_fail += 1
 
+                csv_rows.append({
+                    "test_id":    run_id,
+                    "name":       issue["description"][:80],
+                    "category":   issue.get("source", "Feedback"),
+                    "date":       datetime.now().strftime("%Y-%m-%d"),
+                    "environment": os.environ.get("TEST_ENVIRONMENT", "staging"),
+                    "status":     pass_fail,
+                    "score":      "",
+                    "notes":      notes,
+                    "summary":    notes,
+                })
+
                 # Write to sheet
                 try:
                     next_row = get_next_log_row(sheets_service)
@@ -512,6 +543,15 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                     print(f"  ⚠️  Could not write to sheet: {e}")
 
         await browser.close()
+
+    if csv_rows:
+        csv_path = "tex_feedback_results.csv"
+        fieldnames = ["test_id", "name", "category", "date", "environment", "status", "score", "notes", "summary"]
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csv_rows)
+        print(f"\n[CSV] Results saved: {csv_path}")
 
     total = total_pass + total_fail + total_error
     print(f"\n{'='*70}")

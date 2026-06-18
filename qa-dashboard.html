@@ -71,6 +71,60 @@
       color: #9ca3af;
     }
 
+    /* ── Tab bar ── */
+    .tab-bar {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 24px;
+      display: flex;
+      align-items: flex-end;
+      gap: 0;
+    }
+    .tab-btn {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: #374151; }
+    .tab-btn.active { color: #111827; border-bottom-color: #22c55e; font-weight: 600; }
+
+    /* ── Type filter pills ── */
+    .type-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 24px 0;
+      flex-wrap: wrap;
+    }
+    .type-filter-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      margin-right: 4px;
+    }
+    .pill-btn {
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .pill-btn:hover { border-color: #22c55e; color: #374151; }
+    .pill-btn.active { background: #22c55e; border-color: #22c55e; color: #fff; font-weight: 600; }
+
     /* ── Page ── */
     .page { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
 
@@ -369,14 +423,30 @@
 <header class="header">
   <div class="header-left">
     <h1>Tex QA Dashboard</h1>
-    <span class="chip chip-green">Production</span>
-    <span class="chip chip-green">Criteria Test Run</span>
+    <span class="chip chip-green" id="header-env-chip">All Environments</span>
+    <span class="chip chip-green" id="header-type-chip">All Tests</span>
   </div>
   <div class="header-right">
     <span class="header-powered">Powered by Alibi AI</span>
     <span class="header-lastrun" id="header-lastrun">—</span>
   </div>
 </header>
+
+<!-- Environment tabs -->
+<nav class="tab-bar" id="env-tabs">
+  <button class="tab-btn active" data-env="all">All</button>
+  <button class="tab-btn" data-env="production">Production</button>
+  <button class="tab-btn" data-env="staging">Staging</button>
+</nav>
+
+<!-- Test type filter pills -->
+<div class="type-filter-bar" id="type-filters">
+  <span class="type-filter-label">Test type:</span>
+  <button class="pill-btn active" data-type="all">All</button>
+  <button class="pill-btn" data-type="criteria">Criteria</button>
+  <button class="pill-btn" data-type="custom">Custom</button>
+  <button class="pill-btn" data-type="feedback">Feedback</button>
+</div>
 
 <!-- Main -->
 <main class="page" id="main-content">
@@ -390,9 +460,9 @@ const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 function statusBadge(status) {
   const map = {
-    PASS:  ['badge-pass',  '✓', 'PASS'],
+    PASS:  ['badge-pass',  '&#10003;', 'PASS'],
     WARN:  ['badge-warn',  '~', 'WARN'],
-    FAIL:  ['badge-fail',  '✕', 'FAIL'],
+    FAIL:  ['badge-fail',  '&#10005;', 'FAIL'],
     ERROR: ['badge-error', '!', 'ERROR'],
   };
   const [cls, icon, label] = map[status] || map['ERROR'];
@@ -416,8 +486,26 @@ function formatDate(dateStr) {
 // ── State ─────────────────────────────────────────────────────────────────────
 let allRuns = [];
 let currentRun = null;
-let lineChart = null;
-let barChart = null;
+let activeEnv  = 'all';
+let activeType = 'all';
+let lineChart  = null;
+let barChart   = null;
+
+const ENV_COLORS = {
+  production: { border: '#22c55e', bg: 'rgba(34,197,94,.08)' },
+  staging:    { border: '#3b82f6', bg: 'rgba(59,130,246,.08)' },
+};
+const ENV_LABELS = { production: 'Production', staging: 'Staging', all: 'All Environments' };
+const TYPE_LABELS = { criteria: 'Criteria', custom: 'Custom', feedback: 'Feedback', all: 'All Tests' };
+
+// ── Filtered runs ─────────────────────────────────────────────────────────────
+function filteredRuns() {
+  return allRuns.filter(r => {
+    const envMatch  = activeEnv  === 'all' || (r.environment || 'production') === activeEnv;
+    const typeMatch = activeType === 'all' || (r.test_type || 'criteria') === activeType;
+    return envMatch && typeMatch;
+  });
+}
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 function renderEmpty(msg) {
@@ -434,29 +522,51 @@ function renderEmpty(msg) {
 
 // ── Full render ───────────────────────────────────────────────────────────────
 function renderDashboard() {
-  if (!currentRun) return;
+  const runs = filteredRuns();
+  if (runs.length === 0) {
+    renderEmpty('No runs match the current filter. Try selecting All or a different test type.');
+    return;
+  }
+
+  // Pick currentRun from filtered set (keep previous if still valid, else latest)
+  if (!currentRun || !runs.includes(currentRun)) {
+    currentRun = runs[runs.length - 1];
+  }
+
+  updateHeaderChips();
+  updateHeaderLastRun();
+
   const main = $('#main-content');
-  main.innerHTML = buildHTML();
+  main.innerHTML = buildHTML(runs);
   bindFilters();
-  renderLineChart();
+  renderLineChart(runs);
   renderBarChart();
   renderPartials();
   renderTable();
 }
 
-function buildHTML() {
+function updateHeaderChips() {
+  const envChip = $('#header-env-chip');
+  const typeChip = $('#header-type-chip');
+  if (envChip)  envChip.textContent  = ENV_LABELS[activeEnv]  || activeEnv;
+  if (typeChip) typeChip.textContent = TYPE_LABELS[activeType] || activeType;
+}
+
+function buildHTML(runs) {
   const r = currentRun;
   const cleanCats = Object.values(r.categories || {}).filter(c => c.fail === 0 && c.partial === 0).length;
   const totalCats = Object.keys(r.categories || {}).length;
 
-  const runOptions = allRuns.map((run, i) =>
-    `<option value="${i}" ${run === currentRun ? 'selected' : ''}>${esc(run.label || run.date)}</option>`
-  ).join('');
+  const runOptions = runs.map((run, i) => {
+    const envTag = (run.environment && activeEnv === 'all') ? ` [${run.environment}]` : '';
+    const typeTag = (run.test_type && activeType === 'all') ? ` (${run.test_type})` : '';
+    return `<option value="${runs.indexOf(run)}" ${run === r ? 'selected' : ''}>${esc((run.label || run.date) + envTag + typeTag)}</option>`;
+  });
 
-  const runSelector = allRuns.length > 1 ? `
+  const runSelector = runs.length > 1 ? `
     <div class="controls-bar">
       <label for="run-select">Run:</label>
-      <select id="run-select">${runOptions}</select>
+      <select id="run-select">${runOptions.join('')}</select>
     </div>` : '';
 
   const categories = Object.keys(r.categories || {});
@@ -537,54 +647,107 @@ function buildHTML() {
 }
 
 // ── Line chart ────────────────────────────────────────────────────────────────
-function renderLineChart() {
+function renderLineChart(runs) {
   const ctx = $('#lineChart');
   if (!ctx) return;
   if (lineChart) { lineChart.destroy(); lineChart = null; }
 
-  const sorted = [...allRuns].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  const labels = sorted.map(r => r.label || r.date);
-  const data   = sorted.map(r => r.pass_rate ?? Math.round((r.pass / r.total) * 100));
+  const sorted = [...runs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-  lineChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Pass Rate %',
-        data,
-        borderColor: '#22c55e',
-        backgroundColor: 'rgba(34,197,94,.08)',
-        pointBackgroundColor: '#22c55e',
+  let datasets;
+  if (activeEnv === 'all') {
+    // Separate line per environment
+    const envGroups = {};
+    sorted.forEach(r => {
+      const env = r.environment || 'production';
+      if (!envGroups[env]) envGroups[env] = [];
+      envGroups[env].push(r);
+    });
+
+    // Build a unified x-axis from all dates
+    const allDates = [...new Set(sorted.map(r => r.date || ''))].sort();
+    const labels = allDates.map(d => {
+      const run = sorted.find(r => r.date === d);
+      return run ? (run.label || run.date) : d;
+    });
+
+    datasets = Object.entries(envGroups).map(([env, envRuns]) => {
+      const color = ENV_COLORS[env] || { border: '#6b7280', bg: 'rgba(107,114,128,.08)' };
+      const dataMap = {};
+      envRuns.forEach(r => { dataMap[r.date || ''] = r.pass_rate ?? Math.round((r.pass / r.total) * 100); });
+      return {
+        label: ENV_LABELS[env] || env,
+        data: allDates.map(d => dataMap[d] ?? null),
+        borderColor: color.border,
+        backgroundColor: color.bg,
+        pointBackgroundColor: color.border,
         pointRadius: 4,
         pointHoverRadius: 6,
         borderWidth: 2,
         tension: 0.3,
-        fill: true,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: { label: ctx => `${ctx.parsed.y}%` }
-        }
+        fill: false,
+        spanGaps: true,
+      };
+    });
+
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: chartLineOptions(true),
+    });
+  } else {
+    const labels = sorted.map(r => r.label || r.date);
+    const data   = sorted.map(r => r.pass_rate ?? Math.round((r.pass / r.total) * 100));
+    const color  = ENV_COLORS[activeEnv] || { border: '#22c55e', bg: 'rgba(34,197,94,.08)' };
+
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Pass Rate %',
+          data,
+          borderColor: color.border,
+          backgroundColor: color.bg,
+          pointBackgroundColor: color.border,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true,
+        }]
       },
-      scales: {
-        y: {
-          min: 0, max: 100,
-          ticks: { callback: v => v + '%', font: { size: 11 }, color: '#9ca3af' },
-          grid: { color: '#f3f4f6' },
-        },
-        x: {
-          ticks: { font: { size: 11 }, color: '#9ca3af' },
-          grid: { display: false },
-        }
+      options: chartLineOptions(false),
+    });
+  }
+}
+
+function chartLineOptions(showLegend) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: showLegend,
+        position: 'bottom',
+        labels: { font: { size: 11 }, boxWidth: 10, padding: 10 },
+      },
+      tooltip: {
+        callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
+      }
+    },
+    scales: {
+      y: {
+        min: 0, max: 100,
+        ticks: { callback: v => v + '%', font: { size: 11 }, color: '#9ca3af' },
+        grid: { color: '#f3f4f6' },
+      },
+      x: {
+        ticks: { font: { size: 11 }, color: '#9ca3af' },
+        grid: { display: false },
       }
     }
-  });
+  };
 }
 
 // ── Bar chart ─────────────────────────────────────────────────────────────────
@@ -594,7 +757,7 @@ function renderBarChart() {
   if (barChart) { barChart.destroy(); barChart = null; }
 
   const cats = Object.entries(currentRun.categories || {});
-  const labels = cats.map(([k]) => k);
+  const labels  = cats.map(([k]) => k);
   const pass    = cats.map(([, v]) => v.pass    ?? 0);
   const partial = cats.map(([, v]) => v.partial ?? 0);
   const fail    = cats.map(([, v]) => v.fail    ?? 0);
@@ -656,7 +819,6 @@ function renderTable() {
     (r.name || '').toLowerCase().includes(search)
   );
 
-  // sort by category then id
   rows.sort((a, b) => {
     const cc = (a.category || '').localeCompare(b.category || '');
     if (cc !== 0) return cc;
@@ -712,7 +874,7 @@ function renderPartials() {
               <span>${esc(p.category)}</span>
               ${p.score ? `<span>Score: ${esc(p.score)}</span>` : ''}
             </div>
-            ${fails ? `<div class="partial-card-fail">⚠ ${esc(fails)}</div>` : ''}
+            ${fails ? `<div class="partial-card-fail">&#9888; ${esc(fails)}</div>` : ''}
             ${p.notes ? `<div class="partial-card-notes">${esc(p.notes)}</div>` : ''}
           </div>`;
       }).join('')}
@@ -732,9 +894,12 @@ function bindFilters() {
 
   if (runSel) {
     runSel.addEventListener('change', e => {
-      currentRun = allRuns[parseInt(e.target.value, 10)];
+      const runs = filteredRuns();
+      currentRun = runs[parseInt(e.target.value, 10)];
       updateHeaderLastRun();
-      renderDashboard();
+      renderBarChart();
+      renderPartials();
+      renderTable();
     });
   }
 }
@@ -744,24 +909,45 @@ function updateHeaderLastRun() {
   if (el && currentRun) el.textContent = 'Last run: ' + formatDate(currentRun.date);
 }
 
+// ── Tab / pill bindings ───────────────────────────────────────────────────────
+function bindNavControls() {
+  $$('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeEnv = btn.dataset.env;
+      currentRun = null;
+      renderDashboard();
+    });
+  });
+
+  $$('.pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeType = btn.dataset.type;
+      currentRun = null;
+      renderDashboard();
+    });
+  });
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init() {
+  bindNavControls();
   try {
     const resp = await fetch('reports/qa_results.json');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
     allRuns = (data.runs || []).slice();
+    allRuns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
     if (allRuns.length === 0) {
       renderEmpty('The JSON loaded but contains no runs. Run the test suite to populate it.');
       return;
     }
 
-    // Default to latest run (last in array, or highest date)
-    allRuns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    currentRun = allRuns[allRuns.length - 1];
-
-    updateHeaderLastRun();
     renderDashboard();
   } catch (err) {
     console.error('QA Dashboard load error:', err);

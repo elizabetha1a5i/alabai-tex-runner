@@ -91,9 +91,11 @@ def build_run_entry(rows, label=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv",   default="tex_prod_results.csv", help="Path to results CSV")
-    parser.add_argument("--out",   required=True,                  help="Path to qa_results.json (will create/append)")
-    parser.add_argument("--label", default=None,                   help="Run label e.g. 'June 2026'")
+    parser.add_argument("--csv",         default="tex_prod_results.csv", help="Path to results CSV")
+    parser.add_argument("--out",         required=True,                  help="Path to qa_results.json (will create/append)")
+    parser.add_argument("--label",       default=None,                   help="Run label e.g. 'June 2026'")
+    parser.add_argument("--environment", default="production",           help="Environment: staging | production")
+    parser.add_argument("--test-type",   default="criteria",             help="Test type: criteria | custom | feedback")
     args = parser.parse_args()
 
     if not os.path.exists(args.csv):
@@ -102,6 +104,8 @@ def main():
 
     rows      = load_csv(args.csv)
     run_entry = build_run_entry(rows, args.label)
+    run_entry["environment"] = args.environment
+    run_entry["test_type"]   = getattr(args, "test_type")
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

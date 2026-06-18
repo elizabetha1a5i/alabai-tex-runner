@@ -11,5 +11,8 @@ __pycache__/
 /tmp/
 tex_results.csv
 tex_prod_results.csv
+tex_staging_results.csv
+tex_custom_results.csv
+tex_feedback_results.csv
 .claude/
 *.code-workspace
