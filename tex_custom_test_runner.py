@@ -25,7 +25,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-import anthropic
+from google import genai
 
 # ============================================================================
 # CONFIGURATION
@@ -147,31 +147,72 @@ def load_all_issues(sheets_service):
     return issues
 
 # ============================================================================
-# CLAUDE — GENERATE SCRIPTED TEST
+# GEMINI — MODEL PICKER + HELPERS
 # ============================================================================
 
-def api_call_with_retry(fn, retries=3, delay=5):
-    """Retry an API call on connection errors"""
-    import time
+_PREFERRED_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+]
+_selected_model = None
+
+
+def _get_gemini_client():
+    return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+
+def _pick_gemini_model(client):
+    global _selected_model
+    if _selected_model:
+        return _selected_model
+    try:
+        available = []
+        for m in client.models.list():
+            name = m.name
+            if name.startswith("models/"):
+                name = name[len("models/"):]
+            available.append(name)
+        for preferred in _PREFERRED_MODELS:
+            for avail in available:
+                if avail == preferred or avail.startswith(preferred + "-"):
+                    _selected_model = avail
+                    print(f"  Gemini model selected: {_selected_model}")
+                    return _selected_model
+        if available:
+            _selected_model = available[0]
+            print(f"  Gemini model (fallback): {_selected_model}")
+            return _selected_model
+    except Exception as e:
+        print(f"  Could not list Gemini models: {e}")
+    _selected_model = _PREFERRED_MODELS[0]
+    return _selected_model
+
+
+def _gemini_generate(prompt_text, retries=3, delay=5):
+    client = _get_gemini_client()
+    model  = _pick_gemini_model(client)
     for attempt in range(retries):
         try:
-            return fn()
+            response = client.models.generate_content(model=model, contents=prompt_text)
+            return response.text.strip()
         except Exception as e:
             if attempt < retries - 1:
-                print(f"    ⚠️  API error (attempt {attempt+1}/{retries}): {str(e)[:60]} — retrying in {delay}s...")
+                print(f"    API error (attempt {attempt+1}/{retries}): {str(e)[:60]} — retrying in {delay}s...")
                 time.sleep(delay)
             else:
                 raise
 
 
+# ============================================================================
+# GEMINI — GENERATE SCRIPTED TEST
+# ============================================================================
+
 def generate_scripted_test(issue, variant_num):
     """Generate a multi-turn scripted conversation to test the issue"""
-    client = anthropic.Anthropic()
-    def call():
-        return client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=500,
-            messages=[{"role": "user", "content": f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
+    prompt = f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
 
 Issue to test: "{issue['description']}"
 Variant number: {variant_num} of {VARIANTS_PER_ISSUE} (make each variant approach the issue differently)
@@ -179,28 +220,21 @@ Variant number: {variant_num} of {VARIANTS_PER_ISSUE} (make each variant approac
 Generate a realistic multi-turn SMS conversation script (2-3 user messages) that would trigger this behaviour.
 Messages should be short and natural — like real SMS texts.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON, no markdown fences:
 {{
   "turns": ["first message", "follow up if needed"],
   "expected": "what Tex should do correctly"
-}}"""}],
-        )
-    message = api_call_with_retry(call)
-    raw = message.content[0].text.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
+}}"""
+    raw  = _gemini_generate(prompt)
+    raw  = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw  = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
     return data.get("turns", []), data.get("expected", "")
 
 
 def generate_custom_test(test_name, test_description, variant_num):
     """Generate a 50-variant test starting with the consent sign-up flow"""
-    client = anthropic.Anthropic()
-    def call():
-        return client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=600,
-            messages=[{"role": "user", "content": f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
+    prompt = f"""You are a QA engineer testing Weber GPT (Tex), an AI vodka mixologist chatbot via SMS.
 
 Test name: "{test_name}"
 Test description: "{test_description}"
@@ -213,28 +247,21 @@ Generate a realistic multi-turn SMS conversation that follows this exact flow:
 
 Keep all messages short and natural, like real SMS texts. Use varied realistic fake identities across variants.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON, no markdown fences:
 {{
   "turns": ["consent reply with name/dob/phone", "full name reply", "test message"],
   "expected": "what Tex should do correctly"
-}}"""}],
-        )
-    message = api_call_with_retry(call)
-    raw = message.content[0].text.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
+}}"""
+    raw  = _gemini_generate(prompt)
+    raw  = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw  = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
     return data.get("turns", []), data.get("expected", "")
 
 
 def evaluate_response(page_text, issue_description, test_turns, expected):
-    client = anthropic.Anthropic()
     conversation = "\n".join([f"User: {t}" for t in test_turns])
-    def call():
-        return client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=300,
-            messages=[{"role": "user", "content": f"""You are a QA evaluator for Weber GPT (Tex).
+    prompt = f"""You are a QA evaluator for Weber GPT (Tex).
 
 ISSUE BEING TESTED: {issue_description}
 TEST CONVERSATION:
@@ -242,13 +269,11 @@ TEST CONVERSATION:
 EXPECTED: {expected}
 TEX PAGE CONTENT: {page_text[:800]}
 
-Did Tex PASS or FAIL? Return ONLY valid JSON:
-{{"result": "PASS", "notes": "brief reason"}}"""}],
-        )
-    message = api_call_with_retry(call)
-    raw = message.content[0].text.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
+Did Tex PASS or FAIL? Return ONLY valid JSON, no markdown fences:
+{{"result": "PASS", "notes": "brief reason"}}"""
+    raw  = _gemini_generate(prompt)
+    raw  = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw  = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
     return data.get("result", "WARN"), data.get("notes", "")
 
