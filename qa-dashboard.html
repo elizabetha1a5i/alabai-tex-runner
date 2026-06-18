@@ -366,8 +366,10 @@ function render() {
   const overrideKey = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
   let overrides = {};
   try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
-  const overrideCount = Object.keys(overrides).length;
-  const passRate = total ? Math.round(((passed + partial + overrideCount) / total) * 100) : (r.pass_rate ?? 0);
+  // Only count overrides for tests that are actually FAIL or ERROR (not already passing)
+  const failIds = new Set((r.tests||[]).filter(t=>t.status==='FAIL'||t.status==='ERROR').map(t=>t.id));
+  const overrideCount = Object.keys(overrides).filter(id => failIds.has(id)).length;
+  const passRate = total ? Math.min(100, Math.round(((passed + partial + overrideCount) / total) * 100)) : (r.pass_rate ?? 0);
   const isFB     = (r.test_type||'criteria') === 'feedback';
   const cats     = Object.entries(r.categories||{});
   const cleanCats= cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
