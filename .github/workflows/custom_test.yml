@@ -4,11 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       test_name:
-        description: "Test name (e.g. Consent Flow Age Check)"
+        description: "Test name (e.g. Music Intent)"
         required: true
       test_description:
-        description: "What the test is about (e.g. Tex correctly rejects users under 21)"
+        description: "What the test is about (e.g. Tex answers questions about the Weber Ranch song)"
         required: true
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+          - production_web
 
 jobs:
   run-custom-test:
@@ -27,7 +36,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install \
-            anthropic \
+            google-genai \
             playwright \
             google-auth \
             google-auth-oauthlib \
@@ -42,12 +51,13 @@ jobs:
       - name: Write Google credentials
         run: |
           echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
 
       - name: Run custom test
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HEADLESS: "true"
+          TEST_ENVIRONMENT: ${{ github.event.inputs.environment }}
           CUSTOM_TEST_NAME: ${{ github.event.inputs.test_name }}
           CUSTOM_TEST_DESCRIPTION: ${{ github.event.inputs.test_description }}
         run: xvfb-run python tex_custom_test_runner.py
