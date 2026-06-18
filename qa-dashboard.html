@@ -163,6 +163,9 @@
   .override-btn:hover  { border-color:var(--green); color:var(--green); }
   .override-btn.active { background:var(--green-bg); border-color:var(--green); color:var(--green); }
   .override-note   { font-size:10px; color:var(--green); font-weight:600; }
+  .remove-override-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; border:1.5px solid var(--green); background:var(--green-bg); color:var(--green); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:6px; white-space:nowrap; }
+  .remove-override-btn:hover { background:#b7f5c8; border-color:#0d6024; color:#0d6024; }
+  .partial-badge.pass-override { background:var(--green-bg); color:var(--green); border:1px solid #b7f5c8; }
 
   /* ── Fails list ── */
   .fail-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
@@ -438,21 +441,23 @@ function render() {
       ? `<a class="link-btn" href="${esc(t.screenshot_path)}" target="_blank">📸 Screenshot</a>` : '';
     const convLink = t.conversation_path
       ? `<a class="link-btn" href="${esc(t.conversation_path)}" target="_blank">💬 Conversation</a>` : '';
-    const overriddenBadge = isOverridden ? `<span class="override-note">✓ Manually passed</span>` : '';
+    const badgeLabel = isOverridden ? 'Pass' : (t.score || (typeClass==='warn' ? 'Partial' : 'Fail'));
+    const badgeClass = isOverridden ? 'pass-override' : '';
     return `
       <div class="partial-item ${isOverridden?'overridden':''}" id="card_${esc(oid)}">
         <div class="partial-header">
           <span class="partial-name">${esc(t.name)}</span>
-          <span class="partial-badge">${esc(t.score||typeClass==='warn'?'Partial':'Fail')}</span>
+          <span class="partial-badge ${badgeClass}">${esc(badgeLabel)}</span>
         </div>
         <div class="partial-footer">
           ${critTags}
           ${screenshotLink}
           ${convLink}
-          ${overriddenBadge}
-          <button class="override-btn ${isOverridden?'active':''}" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" style="margin-left:auto">
-            ${isOverridden?'↩ Undo override':'✓ Mark as pass'}
-          </button>
+          ${isOverridden
+            ? `<span class="override-note" style="margin-left:auto">✓ Manually passed</span>
+               <button class="remove-override-btn" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" title="Remove override">✕</button>`
+            : `<button class="override-btn" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" style="margin-left:auto">✓ Mark as pass</button>`
+          }
         </div>
       </div>`;
   }
