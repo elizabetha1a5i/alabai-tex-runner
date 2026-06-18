@@ -23,7 +23,7 @@ Tex had no way to share where to listen when users asked. The global "never incl
 - YouTube: https://youtu.be/Z_Vv75lfqR0
 
 **Trigger behaviour:**
-Links are only shared when the user explicitly asks where to listen or stream the song. Conversational mentions of the song, lyrics questions, or passing references do not trigger links.
+Links are shared when the user asks where to listen or stream the song. One sentence in the intent covers it — no explicit when/when-not rulebook needed.
 
 ---
 
