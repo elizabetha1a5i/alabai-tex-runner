@@ -122,8 +122,15 @@ def main():
     else:
         existing = {"runs": []}
 
-    # Remove any entry with the same date (re-run on same day replaces)
-    existing["runs"] = [r for r in existing["runs"] if r.get("date") != run_entry["date"]]
+    # Remove any entry with the same date + environment + test_type (re-run replaces, but different types coexist)
+    existing["runs"] = [
+        r for r in existing["runs"]
+        if not (
+            r.get("date")        == run_entry["date"] and
+            r.get("environment") == run_entry["environment"] and
+            r.get("test_type")   == run_entry["test_type"]
+        )
+    ]
     existing["runs"].append(run_entry)
 
     # Keep last 30 runs max
