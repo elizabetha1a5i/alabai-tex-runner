@@ -149,11 +149,25 @@
 
   /* ── Partials ── */
   .partial-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
-  .partial-item { background:var(--amber-bg); border:1px solid var(--amber-border); border-radius:var(--radius); padding:16px 18px; }
-  .partial-header { display:flex; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .partial-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
+  .partial-item.overridden { border-color:var(--green); background:var(--green-bg); opacity:.85; }
+  .partial-header { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:10px; }
   .partial-name    { font-size:13px; font-weight:700; color:var(--text); }
-  .partial-badge   { font-size:10px; font-weight:700; color:var(--amber); background:var(--surface); padding:3px 10px; border-radius:20px; border:1px solid var(--amber-border); }
-  .partial-summary { font-size:12px; color:var(--text-mid); line-height:1.65; font-weight:500; }
+  .partial-badge   { font-size:10px; font-weight:700; color:var(--amber); background:var(--amber-bg); padding:3px 10px; border-radius:20px; border:1px solid var(--amber-border); white-space:nowrap; }
+  .partial-footer  { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .criteria-tag    { font-size:10px; font-weight:600; padding:3px 10px; border-radius:20px; background:var(--red-bg); color:var(--red); border:1px solid #fca5a5; white-space:nowrap; }
+  .criteria-tag.warn { background:var(--amber-bg); color:var(--amber); border-color:var(--amber-border); }
+  .link-btn        { font-size:10px; font-weight:600; color:var(--blue); text-decoration:none; padding:3px 10px; border-radius:20px; border:1px solid var(--blue-light); background:var(--blue-light); white-space:nowrap; }
+  .link-btn:hover  { background:#c7e5f7; }
+  .override-btn    { font-size:10px; font-weight:700; padding:3px 12px; border-radius:20px; border:1.5px solid var(--border); background:transparent; color:var(--text-light); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:auto; white-space:nowrap; }
+  .override-btn:hover  { border-color:var(--green); color:var(--green); }
+  .override-btn.active { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .override-note   { font-size:10px; color:var(--green); font-weight:600; }
+
+  /* ── Fails list ── */
+  .fail-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
+  .fail-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
+  .fail-item.overridden { border-color:var(--green); background:var(--green-bg); opacity:.85; }
 
   .disclaimer { font-size:11px; color:var(--text-light); padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); line-height:1.75; margin-bottom:24px; font-weight:500; box-shadow:var(--shadow); }
   .footer { text-align:center; padding:20px; font-size:11px; color:var(--text-light); border-top:1px solid var(--border); font-weight:600; letter-spacing:.5px; }
@@ -334,7 +348,11 @@ function render() {
   const partial  = r.partial|| 0;
   const failed   = r.fail   || 0;
   const errored  = r.error  || 0;
-  const passRate = r.pass_rate ?? pct(passed+partial, total);
+  const overrideKey = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
+  const overrideCount = Object.keys(overrides).length;
+  const passRate = total ? Math.round(((passed + partial + overrideCount) / total) * 100) : (r.pass_rate ?? 0);
   const isFB     = (r.test_type||'criteria') === 'feedback';
   const cats     = Object.entries(r.categories||{});
   const cleanCats= cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
@@ -391,16 +409,49 @@ function render() {
       ${splitCard}
     </div>` : `<div style="margin-bottom:28px">${splitCard}</div>`;
 
-  const issueHTML    = isFB ? buildIssueTracker(r, prevRun) : '';
-  const partials     = r.partials||[];
+  const issueHTML = isFB ? buildIssueTracker(r, prevRun) : '';
+
+  function testCard(t, typeClass) {
+    const oid = t.id || t.name;
+    const isOverridden = !!overrides[oid];
+    const criteriaStr = t.criteria_failed||t.critical_failures||t.high_failures||'';
+    const critTags = criteriaStr.split(/[,;|]/).map(s=>s.trim()).filter(Boolean)
+      .map(c=>`<span class="criteria-tag ${typeClass==='warn'?'warn':''}">${esc(c)}</span>`).join('');
+    const screenshotLink = t.screenshot_path
+      ? `<a class="link-btn" href="${esc(t.screenshot_path)}" target="_blank">📸 Screenshot</a>` : '';
+    const convLink = t.conversation_path
+      ? `<a class="link-btn" href="${esc(t.conversation_path)}" target="_blank">💬 Conversation</a>` : '';
+    const overriddenBadge = isOverridden ? `<span class="override-note">✓ Manually passed</span>` : '';
+    return `
+      <div class="partial-item ${isOverridden?'overridden':''}" id="card_${esc(oid)}">
+        <div class="partial-header">
+          <span class="partial-name">${esc(t.name)}</span>
+          <span class="partial-badge">${esc(t.score||typeClass==='warn'?'Partial':'Fail')}</span>
+        </div>
+        <div class="partial-footer">
+          ${critTags}
+          ${screenshotLink}
+          ${convLink}
+          ${overriddenBadge}
+          <button class="override-btn ${isOverridden?'active':''}" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" style="margin-left:auto">
+            ${isOverridden?'↩ Undo override':'✓ Mark as pass'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  const partials = r.partials||[];
   const partialsHTML = !isFB && partials.length ? `
     <div class="section-label">Partials to Monitor</div>
     <div class="partial-list">
-      ${partials.map(p=>`
-        <div class="partial-item">
-          <div class="partial-header"><span class="partial-name">${esc(p.name)}</span><span class="partial-badge">${esc(p.score||'Partial')}</span></div>
-          <div class="partial-summary">${esc(p.summary||p.notes||'')}</div>
-        </div>`).join('')}
+      ${partials.map(p=>testCard(p,'warn')).join('')}
+    </div>` : '';
+
+  const failTests = !isFB ? (r.tests||[]).filter(t=>t.status==='FAIL') : [];
+  const failsHTML = failTests.length ? `
+    <div class="section-label">Failing Tests</div>
+    <div class="fail-list">
+      ${failTests.map(t=>testCard(t,'fail')).join('')}
     </div>` : '';
 
   document.getElementById('main').innerHTML = `
@@ -434,6 +485,7 @@ function render() {
     ${buildTrendHTML(runs)}
     ${catHTML}
     ${issueHTML}
+    ${failsHTML}
     ${partialsHTML}
     <div class="disclaimer">
       Results reflect automated ${esc(r.test_type||'criteria')} testing against the ${esc(r.environment||'production')} environment${r.date?' on '+esc(fmtDate(r.date)):''}.
@@ -511,6 +563,18 @@ function buildTrendHTML(runs) {
         </svg>
       </div>
     </div>`;
+}
+
+function toggleOverride(testId, overrideKey) {
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
+  if (overrides[testId]) {
+    delete overrides[testId];
+  } else {
+    overrides[testId] = { overriddenAt: new Date().toISOString() };
+  }
+  localStorage.setItem(overrideKey, JSON.stringify(overrides));
+  render(); // re-render to reflect updated overrides and recalculate KPIs
 }
 
 function exportCSV() {

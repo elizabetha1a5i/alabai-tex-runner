@@ -60,15 +60,18 @@ def build_run_entry(rows, label=None):
     for row in rows:
         status = row.get("status", "").upper()
         tests.append({
-            "id":       row.get("test_id", ""),
-            "name":     row.get("name", ""),
-            "category": row.get("category", ""),
-            "status":   status,
-            "score":    row.get("score", ""),
+            "id":                row.get("test_id", ""),
+            "name":              row.get("name", ""),
+            "category":          row.get("category", ""),
+            "status":            status,
+            "score":             row.get("score", ""),
             "critical_failures": row.get("critical_failures", ""),
             "high_failures":     row.get("high_failures", ""),
-            "notes":    row.get("notes", ""),
-            "summary":  row.get("summary", ""),
+            "criteria_failed":   row.get("criteria_failed", "") or row.get("all_failed_criteria", ""),
+            "notes":             row.get("notes", ""),
+            "summary":           row.get("summary", ""),
+            "screenshot_path":   row.get("screenshot_path", ""),
+            "conversation_path": row.get("conversation_path", ""),
         })
 
     # Partials = WARN tests (passed overall but have flagged criteria)
