@@ -23,7 +23,7 @@ def load_csv(csv_path):
     return rows
 
 
-def build_run_entry(rows, label=None):
+def build_run_entry(rows, label=None, screenshots_dir=None, run_date=None):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     label = label or datetime.utcnow().strftime("%B %Y")
 
@@ -59,8 +59,15 @@ def build_run_entry(rows, label=None):
     tests = []
     for row in rows:
         status = row.get("status", "").upper()
+        test_id = row.get("test_id", "")
+        # Check if a local screenshot was copied to the repo for this test
+        screenshot_local = ""
+        if screenshots_dir and run_date and status in ("FAIL", "WARN"):
+            local_png = Path(screenshots_dir) / f"{test_id}.png"
+            if local_png.exists():
+                screenshot_local = f"screenshots/{run_date}/{test_id}.png"
         tests.append({
-            "id":                row.get("test_id", ""),
+            "id":                test_id,
             "name":              row.get("name", ""),
             "category":          row.get("category", ""),
             "status":            status,
@@ -71,6 +78,7 @@ def build_run_entry(rows, label=None):
             "notes":             row.get("notes", ""),
             "summary":           row.get("summary", ""),
             "screenshot_path":   row.get("screenshot_path", ""),
+            "screenshot_local":  screenshot_local,
             "conversation_path": row.get("conversation_path", ""),
         })
 
@@ -94,19 +102,21 @@ def build_run_entry(rows, label=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv",         default="tex_prod_results.csv", help="Path to results CSV")
-    parser.add_argument("--out",         required=True,                  help="Path to qa_results.json (will create/append)")
-    parser.add_argument("--label",       default=None,                   help="Run label e.g. 'June 2026'")
-    parser.add_argument("--environment", default="production",           help="Environment: staging | production")
-    parser.add_argument("--test-type",   default="criteria",             help="Test type: criteria | custom | feedback")
+    parser.add_argument("--csv",              default="tex_prod_results.csv", help="Path to results CSV")
+    parser.add_argument("--out",              required=True,                  help="Path to qa_results.json (will create/append)")
+    parser.add_argument("--label",            default=None,                   help="Run label e.g. 'June 2026'")
+    parser.add_argument("--environment",      default="production",           help="Environment: staging | production")
+    parser.add_argument("--test-type",        default="criteria",             help="Test type: criteria | custom | feedback")
+    parser.add_argument("--screenshots-dir",  default=None,                   help="Dir where fail/partial PNGs were copied, e.g. cyphr-flow/screenshots/2026-06-18")
     args = parser.parse_args()
 
     if not os.path.exists(args.csv):
         print(f"[ERROR] CSV not found: {args.csv}")
         raise SystemExit(1)
 
+    run_date  = datetime.utcnow().strftime("%Y-%m-%d")
     rows      = load_csv(args.csv)
-    run_entry = build_run_entry(rows, args.label)
+    run_entry = build_run_entry(rows, args.label, args.screenshots_dir, run_date)
     run_entry["environment"] = args.environment
     run_entry["test_type"]   = getattr(args, "test_type")
 

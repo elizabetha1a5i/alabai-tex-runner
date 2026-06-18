@@ -1,0 +1,59 @@
+name: Cleanup Old Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "Number of most-recent dated folders to keep"
+        required: false
+        default: "10"
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout cyphr-flow
+        uses: actions/checkout@v4
+        with:
+          repository: elizabetha1a5i/cyphr-flow
+          ssh-key: ${{ secrets.CYPHR_FLOW_DEPLOY_KEY }}
+          path: cyphr-flow
+
+      - name: Delete old screenshot folders
+        run: |
+          KEEP="${{ github.event.inputs.keep }}"
+          KEEP="${KEEP:-10}"
+          SCREENSHOTS_DIR="cyphr-flow/screenshots"
+
+          if [ ! -d "$SCREENSHOTS_DIR" ]; then
+            echo "No screenshots directory found — nothing to clean up."
+            exit 0
+          fi
+
+          # List all dated folders (YYYY-MM-DD) sorted oldest first
+          ALL_FOLDERS=$(ls -1 "$SCREENSHOTS_DIR" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort)
+          TOTAL=$(echo "$ALL_FOLDERS" | grep -c . || true)
+
+          if [ "$TOTAL" -le "$KEEP" ]; then
+            echo "Only $TOTAL folder(s) found — keeping all (limit is $KEEP). Nothing deleted."
+            exit 0
+          fi
+
+          DELETE_COUNT=$(( TOTAL - KEEP ))
+          TO_DELETE=$(echo "$ALL_FOLDERS" | head -n "$DELETE_COUNT")
+
+          echo "Found $TOTAL folder(s). Deleting $DELETE_COUNT oldest:"
+          for folder in $TO_DELETE; do
+            echo "  Removing $SCREENSHOTS_DIR/$folder"
+            rm -rf "$SCREENSHOTS_DIR/$folder"
+          done
+
+      - name: Commit and push
+        run: |
+          cd cyphr-flow
+          git config user.name  "Alibi AI"
+          git config user.email "ci@alibi.ai"
+          git add -A screenshots/
+          git diff --staged --quiet || git commit -m "cleanup: remove old screenshot folders (keep last ${{ github.event.inputs.keep || '10' }})"
+          git push

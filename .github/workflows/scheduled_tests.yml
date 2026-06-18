@@ -44,11 +44,17 @@ jobs:
           ssh-key: ${{ secrets.CYPHR_FLOW_DEPLOY_KEY }}
           path: cyphr-flow
 
+      - name: Copy fail/partial screenshots to cyphr-flow
+        run: |
+          RUN_DATE=$(date +'%Y-%m-%d')
+          python copy_screenshots.py \
+            --csv tex_staging_results.csv \
+            --dest "cyphr-flow/screenshots/$RUN_DATE"
+
       - name: Generate QA snapshot JSON
         run: |
           if [ ! -f tex_staging_results.csv ]; then
             echo "WARNING: tex_staging_results.csv not found — skipping snapshot"
-            ls -la *.csv 2>/dev/null || echo "No CSV files in working directory"
             exit 0
           fi
           python generate_qa_snapshot.py \
@@ -56,7 +62,8 @@ jobs:
             --out cyphr-flow/reports/qa_results.json \
             --environment staging \
             --test-type criteria \
-            --label "$(date +'%B %Y')"
+            --label "$(date +'%B %Y')" \
+            --screenshots-dir "cyphr-flow/screenshots/$(date +'%Y-%m-%d')"
 
       - name: Copy dashboard page to cyphr-flow
         run: |
@@ -70,5 +77,6 @@ jobs:
           git config user.email "ci@alibi.ai"
           git add qa-dashboard.html
           [ -f reports/qa_results.json ] && git add reports/qa_results.json || echo "No snapshot to add"
+          git add screenshots/ 2>/dev/null || echo "No screenshots to add"
           git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — staging criteria run"
           git push

@@ -1903,7 +1903,7 @@ async def run_test(test_case, page, drive_service, folder_id,
                         sf = f"/tmp/{test_id}_partial.png"
                         await page.screenshot(path=sf, full_page=True)
                         result["screenshot_path"] = upload_to_drive(drive_service, sf, folder_id)
-                        os.remove(sf)
+                        # keep file on disk — CI copies fail/partial PNGs to cyphr-flow repo
                         cf = f"/tmp/{test_id}_conversation.md"
                         with open(cf, "w", encoding="utf-8") as f:
                             f.write(format_conversation_markdown(partial, test_id, test_name))
@@ -1951,7 +1951,7 @@ async def run_test(test_case, page, drive_service, folder_id,
         sf = f"/tmp/{test_id}_final.png"
         await page.screenshot(path=sf, full_page=True)
         result["screenshot_path"] = upload_to_drive(drive_service, sf, folder_id)
-        os.remove(sf)
+        # keep file on disk — CI copies fail/partial PNGs to cyphr-flow repo
 
         print(f"  📝 Saving conversation...")
         cf = f"/tmp/{test_id}_conversation.md"

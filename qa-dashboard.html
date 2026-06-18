@@ -627,6 +627,27 @@ async function init() {
       document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
       return;
     }
+    // Storage warning: count distinct screenshot dates across all runs
+    const screenshotDates = new Set(
+      allRuns.flatMap(r => (r.tests||[])
+        .filter(t => t.screenshot_local)
+        .map(t => t.screenshot_local.split('/')[1])
+      ).filter(Boolean)
+    );
+    if (screenshotDates.size > 10) {
+      const banner = document.createElement('div');
+      banner.id = 'storage-warn';
+      banner.style.cssText = 'background:#fef9e7;border-bottom:1px solid #fde68a;padding:10px 40px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;color:#7a5200;';
+      banner.innerHTML = `
+        <span style="font-size:16px;">⚠️</span>
+        <span>Screenshot storage: <strong>${screenshotDates.size} dated folders</strong> in the repo (limit is 10). Clean up old folders to keep the repo lean.</span>
+        <a href="https://github.com/elizabetha1a5i/alabai-tex-runner/actions/workflows/cleanup_screenshots.yml"
+           target="_blank"
+           style="margin-left:auto;background:#258ed8;color:#fff;border-radius:8px;padding:5px 14px;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap;">
+          Run Cleanup →
+        </a>`;
+      document.querySelector('.toolbar').after(banner);
+    }
     render();
   } catch(e) {
     document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
