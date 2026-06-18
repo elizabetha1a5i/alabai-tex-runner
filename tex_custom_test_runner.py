@@ -1,4 +1,4 @@
-"""
+﻿"""
 alibi_feedback_runner_v3.py
 ────────────────────────────
 Alibi AI — Feedback Test Runner v3 for Weber GPT (Tex)
@@ -55,7 +55,7 @@ BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
 BROWSER_CONTEXT_PATH = os.path.expanduser("~/.tex_qa_browser")
 
 USER_ISSUES_TAB   = " Known User Issues"
-SYSTEM_ISSUES_TAB = "⚠️ Known System Issues"
+SYSTEM_ISSUES_TAB = "[WARN] Known System Issues"
 QA_LOG_TAB        = "🧪 QA Test Log"
 
 VARIANTS_PER_ISSUE = 3
@@ -81,11 +81,11 @@ def select_environment():
     if env_override and env_override in ENVIRONMENTS:
         ENVIRONMENT = env_override
         BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
-        print(f"  Environment (CI): {ENVIRONMENT} → {BASE_URL}")
+        print(f"  Environment (CI): {ENVIRONMENT} -> {BASE_URL}")
         return
 
     if not sys.stdin.isatty():
-        print(f"  Environment (default): {ENVIRONMENT} → {BASE_URL}")
+        print(f"  Environment (default): {ENVIRONMENT} -> {BASE_URL}")
         return
 
     print("\n" + "="*50)
@@ -100,7 +100,7 @@ def select_environment():
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             ENVIRONMENT = options[int(choice) - 1]
             BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
-            print(f"  Running against: {ENVIRONMENT} → {BASE_URL}\n")
+            print(f"  Running against: {ENVIRONMENT} -> {BASE_URL}\n")
             return
         print("  Invalid choice — enter 1, 2, or 3.")
 
@@ -123,7 +123,7 @@ def get_google_services():
                 raise ValueError("token.json is empty")
             d = _json.loads(raw)
         except Exception as e:
-            print(f"  ⚠️  token.json unreadable ({e}) — will try OAuth flow")
+            print(f"  [WARN]  token.json unreadable ({e}) — will try OAuth flow")
             d = {}
         if d.get("refresh_token"):
             creds = Credentials(
@@ -142,12 +142,12 @@ def get_google_services():
         try:
             creds.refresh(Request())
         except Exception as e:
-            print(f"  ⚠️  Token refresh failed ({e}) — re-authenticating via browser")
+            print(f"  [WARN]  Token refresh failed ({e}) — re-authenticating via browser")
             creds = None
 
     if not creds:
         if not os.path.exists(CREDENTIALS_FILE):
-            print("\n❌ credentials.json not found!")
+            print("\n[FAIL] credentials.json not found!")
             return None, None
         flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
         creds = flow.run_local_server(port=0)
@@ -178,7 +178,7 @@ def load_sheet(sheets_service, tab_name):
         ).execute()
         return result.get("values", [])
     except Exception as e:
-        print(f"⚠️  Could not load {tab_name}: {e}")
+        print(f"[WARN]  Could not load {tab_name}: {e}")
         return []
 
 
@@ -497,10 +497,10 @@ async def wait_for_response(page, max_wait=120, stability=10):
             got_resp    = True
             bursts     += 1
             prev        = cur
-            print(f"    📨 Response at {elapsed:.1f}s")
+            print(f"    [MSG] Response at {elapsed:.1f}s")
 
         if got_resp and time.time() - last_change >= stability and elapsed >= 5:
-            print(f"    ✅ Stable at {elapsed:.1f}s")
+            print(f"    [OK] Stable at {elapsed:.1f}s")
             return elapsed
 
         await page.wait_for_timeout(1500)
@@ -551,9 +551,9 @@ async def run_scripted_test(page, turns):
 
 async def run_selected_issues(selected_issues, all_issues, drive_service, sheets_service):
     run_name = f"Alibi_Feedback_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"\n📁 Creating Drive folder: {run_name}")
+    print(f"\n[DIR] Creating Drive folder: {run_name}")
     folder_id, folder_url = create_drive_folder(drive_service, run_name, DRIVE_FOLDER_ID)
-    print(f"✅ {folder_url}")
+    print(f"[OK] {folder_url}")
 
     total_pass = total_fail = total_error = 0
 
@@ -572,7 +572,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
             feedback_id = f"FB-{issue['type'].upper()}-{idx+1:03d}"
 
             print(f"\n{'='*70}")
-            print(f"📋 [{issue_idx+1}/{len(selected_issues)}] {feedback_id}")
+            print(f"[LIST] [{issue_idx+1}/{len(selected_issues)}] {feedback_id}")
             print(f"   {issue['description'][:60]}...")
             print(f"   Source: {issue['source']}  |  Severity: {issue['severity']}")
 
@@ -584,7 +584,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                 try:
                     turns, generated_expected = generate_scripted_test(issue, v_num)
                 except Exception as e:
-                    print(f"  ❌ Generation failed: {e}")
+                    print(f"  [FAIL] Generation failed: {e}")
                     continue
 
                 # Use expected behaviour from sheet if set, otherwise use Claude-generated
@@ -594,7 +594,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                 try:
                     page_text = await run_scripted_test(page, turns)
                 except Exception as e:
-                    print(f"  ❌ Test error: {e}")
+                    print(f"  [FAIL] Test error: {e}")
                     page_text = ""
 
                 if not page_text:
@@ -609,7 +609,7 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                         pass_fail, notes = "ERROR", f"Evaluator error: {str(e)[:60]}"
                         total_error += 1
 
-                icon = "✅" if pass_fail == "PASS" else ("❌" if pass_fail == "FAIL" else "⚠️")
+                icon = "[OK]" if pass_fail == "PASS" else ("[FAIL]" if pass_fail == "FAIL" else "[WARN]")
                 print(f"  {icon} {pass_fail}: {notes[:55]}")
 
                 # Export PDF (print quality — no screenshots)
@@ -630,9 +630,9 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                     )
                     pdf_url = upload_to_drive(drive_service, pdf_path, folder_id)
                     os.remove(pdf_path)
-                    print(f"  📄 PDF exported: {pdf_name}")
+                    print(f"  [PDF] PDF exported: {pdf_name}")
                 except Exception as e:
-                    print(f"  ⚠️  Could not export PDF: {str(e)[:60]}")
+                    print(f"  [WARN]  Could not export PDF: {str(e)[:60]}")
 
                 if pass_fail == "PASS":
                     total_pass += 1
@@ -659,31 +659,31 @@ async def run_selected_issues(selected_issues, all_issues, drive_service, sheets
                         pdf_url,
                         png_url,
                     )
-                    print(f"  📝 Written to QA Log row {next_row}")
+                    print(f"  [LOG] Written to QA Log row {next_row}")
                 except Exception as e:
-                    print(f"  ⚠️  Could not write to sheet: {e}")
+                    print(f"  [WARN]  Could not write to sheet: {e}")
 
         await browser.close()
 
     total = total_pass + total_fail + total_error
     print(f"\n{'='*70}")
-    print(f"📈 ALIBI AI — RUN COMPLETE")
+    print(f"[STATS] ALIBI AI — RUN COMPLETE")
     print(f"{'='*70}")
     print(f"  Issues tested:  {len(selected_issues)}")
     print(f"  Variants run:   {total}")
-    print(f"  ✅ Pass:        {total_pass}")
-    print(f"  ❌ Fail:        {total_fail}")
-    print(f"  ⚠️  Error:       {total_error}")
-    print(f"\n📁 Drive: {folder_url}")
-    print(f"✅ Results written to QA Test Log")
+    print(f"  [OK] Pass:        {total_pass}")
+    print(f"  [FAIL] Fail:        {total_fail}")
+    print(f"  [WARN]  Error:       {total_error}")
+    print(f"\n[DIR] Drive: {folder_url}")
+    print(f"[OK] Results written to QA Test Log")
 
 
 async def run_custom_test_suite(test_name, test_description, drive_service, sheets_service):
     safe_name  = re.sub(r"[^\w]", "_", test_name)[:30]
     run_name   = f"Custom_{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    print(f"\n📁 Creating Drive folder: {run_name}")
+    print(f"\n[DIR] Creating Drive folder: {run_name}")
     folder_id, folder_url = create_drive_folder(drive_service, run_name, DRIVE_FOLDER_ID)
-    print(f"✅ {folder_url}")
+    print(f"[OK] {folder_url}")
 
     feedback_id  = f"CUSTOM-{safe_name.upper()}"
     total_pass = total_fail = total_error = 0
@@ -708,7 +708,7 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
             try:
                 turns, expected = generate_custom_test(test_name, test_description, v_num)
             except Exception as e:
-                print(f"  ❌ Generation failed: {e}")
+                print(f"  [FAIL] Generation failed: {e}")
                 total_error += 1
                 continue
 
@@ -717,7 +717,7 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
             try:
                 page_text = await run_scripted_test(page, turns)
             except Exception as e:
-                print(f"  ❌ Test error: {e}")
+                print(f"  [FAIL] Test error: {e}")
                 page_text = ""
 
             if not page_text:
@@ -730,7 +730,7 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
                     pass_fail, notes = "ERROR", f"Evaluator error: {str(e)[:60]}"
                     total_error += 1
 
-            icon = "✅" if pass_fail == "PASS" else ("❌" if pass_fail == "FAIL" else "⚠️")
+            icon = "[OK]" if pass_fail == "PASS" else ("[FAIL]" if pass_fail == "FAIL" else "[WARN]")
             print(f"  {icon} {pass_fail}: {notes[:55]}")
 
             pdf_url = ""
@@ -748,9 +748,9 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
                 )
                 pdf_url = upload_to_drive(drive_service, pdf_path, folder_id)
                 os.remove(pdf_path)
-                print(f"  📄 PDF exported: {pdf_name}")
+                print(f"  [PDF] PDF exported: {pdf_name}")
             except Exception as e:
-                print(f"  ⚠️  Could not export PDF: {str(e)[:60]}")
+                print(f"  [WARN]  Could not export PDF: {str(e)[:60]}")
 
             if pass_fail == "PASS":
                 total_pass += 1
@@ -776,55 +776,55 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
                     pdf_url,
                     "",
                 )
-                print(f"  📝 Written to QA Log row {next_row}")
+                print(f"  [LOG] Written to QA Log row {next_row}")
             except Exception as e:
-                print(f"  ⚠️  Could not write to sheet: {e}")
+                print(f"  [WARN]  Could not write to sheet: {e}")
 
         await browser.close()
 
     total = total_pass + total_fail + total_error
     print(f"\n{'='*70}")
-    print(f"📈 CUSTOM TEST COMPLETE — {test_name}")
+    print(f"[STATS] CUSTOM TEST COMPLETE — {test_name}")
     print(f"{'='*70}")
     print(f"  Variants run:   {total}")
-    print(f"  ✅ Pass:        {total_pass}")
-    print(f"  ❌ Fail:        {total_fail}")
-    print(f"  ⚠️  Error:       {total_error}")
-    print(f"\n📁 Drive: {folder_url}")
-    print(f"✅ Results written to QA Test Log")
+    print(f"  [OK] Pass:        {total_pass}")
+    print(f"  [FAIL] Fail:        {total_fail}")
+    print(f"  [WARN]  Error:       {total_error}")
+    print(f"\n[DIR] Drive: {folder_url}")
+    print(f"[OK] Results written to QA Test Log")
 
 
 def main():
     select_environment()
-    print("\n🔐 Connecting to Google...")
+    print("\n[AUTH] Connecting to Google...")
     drive_service, sheets_service = get_google_services()
     if not drive_service:
-        print("❌ Auth failed.")
+        print("[FAIL] Auth failed.")
         return
-    print("✅ Connected")
+    print("[OK] Connected")
 
     # Custom test CI mode — must be checked before loading issues
     custom_name = os.environ.get("CUSTOM_TEST_NAME", "").strip()
     custom_desc = os.environ.get("CUSTOM_TEST_DESCRIPTION", "").strip()
     if custom_name and custom_desc:
-        print(f"\n🤖 CI custom test mode — '{custom_name}'")
-        print(f"\n🚀 Running custom test '{custom_name}' × {CUSTOM_TEST_VARIANTS} variants...")
+        print(f"\n[BOT] CI custom test mode — '{custom_name}'")
+        print(f"\n[RUN] Running custom test '{custom_name}' × {CUSTOM_TEST_VARIANTS} variants...")
         asyncio.run(run_custom_test_suite(custom_name, custom_desc, drive_service, sheets_service))
         return
 
-    print("\n📋 Loading issues...")
+    print("\n[LIST] Loading issues...")
     issues = load_all_issues(sheets_service)
 
     if not issues:
-        print("✅ No open issues found.")
+        print("[OK] No open issues found.")
         return
 
     # In CI (no TTY) — run all issues automatically
     import sys
     if not sys.stdin.isatty():
-        print("\n🤖 CI mode — running all issues automatically")
+        print("\n[BOT] CI mode — running all issues automatically")
         indices = list(range(len(issues)))
-        print(f"\n🚀 Running {len(indices)} issue(s) × {VARIANTS_PER_ISSUE} variants = {len(indices)*VARIANTS_PER_ISSUE} tests...")
+        print(f"\n[RUN] Running {len(indices)} issue(s) × {VARIANTS_PER_ISSUE} variants = {len(indices)*VARIANTS_PER_ISSUE} tests...")
         asyncio.run(run_selected_issues(indices, issues, drive_service, sheets_service))
         return
 
@@ -839,13 +839,13 @@ def main():
         if selection.upper() == "C":
             test_name = input("\n▶ Test name: ").strip()
             if not test_name:
-                print("❌ Test name required.")
+                print("[FAIL] Test name required.")
                 continue
             test_description = input("▶ What should this test be about?\n  > ").strip()
             if not test_description:
-                print("❌ Test description required.")
+                print("[FAIL] Test description required.")
                 continue
-            print(f"\n🚀 Running custom test '{test_name}' × {CUSTOM_TEST_VARIANTS} variants...")
+            print(f"\n[RUN] Running custom test '{test_name}' × {CUSTOM_TEST_VARIANTS} variants...")
             asyncio.run(run_custom_test_suite(test_name, test_description, drive_service, sheets_service))
             again = input("\n▶ Run more? (y/n): ").strip().lower()
             if again != "y":
@@ -856,10 +856,10 @@ def main():
         if indices is None:
             break
         if not indices:
-            print("❌ No valid selection.")
+            print("[FAIL] No valid selection.")
             continue
 
-        print(f"\n🚀 Running {len(indices)} issue(s) × {VARIANTS_PER_ISSUE} variants = {len(indices)*VARIANTS_PER_ISSUE} tests...")
+        print(f"\n[RUN] Running {len(indices)} issue(s) × {VARIANTS_PER_ISSUE} variants = {len(indices)*VARIANTS_PER_ISSUE} tests...")
         asyncio.run(run_selected_issues(indices, issues, drive_service, sheets_service))
 
         again = input("\n▶ Run more? (y/n): ").strip().lower()
