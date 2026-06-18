@@ -2049,7 +2049,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
             writer.writerow(r)
 
     results_link = upload_to_drive(drive_service, local_csv, folder_id)
-    os.remove(local_csv)
+    # Keep local_csv on disk so the CI snapshot step can read it
 
     print("\n📊 Writing results to Google Sheets...")
     append_to_results_sheet(sheets_service, results)
