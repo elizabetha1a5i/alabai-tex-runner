@@ -45,3 +45,29 @@ jobs:
           else
             python tex_qa_test_runner_prod.py
           fi
+
+      - name: Checkout cyphr-flow for dashboard publish
+        uses: actions/checkout@v4
+        with:
+          repository: elizabetha1a5i/cyphr-flow
+          ssh-key: ${{ secrets.CYPHR_FLOW_DEPLOY_KEY }}
+          path: cyphr-flow
+
+      - name: Generate QA snapshot JSON
+        run: |
+          python generate_qa_snapshot.py \
+            --csv tex_prod_results.csv \
+            --out cyphr-flow/reports/qa_results.json \
+            --label "$(date +'%B %Y')"
+
+      - name: Copy dashboard page to cyphr-flow
+        run: cp qa-dashboard.html cyphr-flow/qa-dashboard.html
+
+      - name: Publish dashboard to cyphr-flow
+        run: |
+          cd cyphr-flow
+          git config user.name  "Alibi AI"
+          git config user.email "ci@alibi.ai"
+          git add reports/qa_results.json qa-dashboard.html
+          git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — prod test run"
+          git push

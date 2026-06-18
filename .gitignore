@@ -1,5 +1,9 @@
 credentials.json
+token.json
 token.pickle
+setup_env.ps1
+cyphr_flow_deploy_key
+cyphr_flow_deploy_key.pub
 *.pickle
 __pycache__/
 *.pyc
