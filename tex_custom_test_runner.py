@@ -22,6 +22,7 @@ from playwright.async_api import async_playwright
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -41,8 +42,15 @@ SCOPES = [
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE       = "token.pickle"
 
+ENVIRONMENTS = {
+    "staging":    "https://weber-gpt-staging.vercel.app/?wsms=",
+    "production": "https://weber-gpt-serverless.vercel.app/",
+    "production_web": "https://weberranch.com",
+}
+
+# Set at runtime via select_environment() — do not change here.
 ENVIRONMENT = "staging"
-BASE_URL    = "https://weber-gpt-staging.vercel.app/?wsms="
+BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
 
 BROWSER_CONTEXT_PATH = os.path.expanduser("~/.tex_qa_browser")
 
@@ -61,25 +69,101 @@ CONSENT_PROMPT_1 = (
 CONSENT_PROMPT_2 = "Could you tell me your full name to finish the sign-up?"
 
 # ============================================================================
+# ENVIRONMENT SELECTOR
+# ============================================================================
+
+def select_environment():
+    """Ask the user which environment to run against. Sets ENVIRONMENT and BASE_URL."""
+    global ENVIRONMENT, BASE_URL
+    import sys
+    # CI mode — honour env var, default to staging
+    env_override = os.environ.get("TEST_ENVIRONMENT", "").strip().lower()
+    if env_override and env_override in ENVIRONMENTS:
+        ENVIRONMENT = env_override
+        BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
+        print(f"  Environment (CI): {ENVIRONMENT} → {BASE_URL}")
+        return
+
+    if not sys.stdin.isatty():
+        print(f"  Environment (default): {ENVIRONMENT} → {BASE_URL}")
+        return
+
+    print("\n" + "="*50)
+    print("  SELECT ENVIRONMENT")
+    print("="*50)
+    options = list(ENVIRONMENTS.keys())
+    for i, key in enumerate(options, 1):
+        print(f"  {i}. {key:<20} {ENVIRONMENTS[key]}")
+    print("="*50)
+    while True:
+        choice = input("▶ Select environment (1/2/3): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(options):
+            ENVIRONMENT = options[int(choice) - 1]
+            BASE_URL    = ENVIRONMENTS[ENVIRONMENT]
+            print(f"  Running against: {ENVIRONMENT} → {BASE_URL}\n")
+            return
+        print("  Invalid choice — enter 1, 2, or 3.")
+
+
+# ============================================================================
 # GOOGLE AUTH
 # ============================================================================
 
 def get_google_services():
+    import json as _json
     creds = None
-    if os.path.exists(TOKEN_FILE):
+
+    # Prefer token.json (works in CI and locally).
+    # Fall back to token.pickle for backwards compatibility.
+    if os.path.exists("token.json"):
+        try:
+            with open("token.json") as f:
+                raw = f.read().strip()
+            if not raw:
+                raise ValueError("token.json is empty")
+            d = _json.loads(raw)
+        except Exception as e:
+            print(f"  ⚠️  token.json unreadable ({e}) — will try OAuth flow")
+            d = {}
+        if d.get("refresh_token"):
+            creds = Credentials(
+                token=d.get("token"),
+                refresh_token=d.get("refresh_token"),
+                token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
+                client_id=d.get("client_id"),
+                client_secret=d.get("client_secret"),
+                scopes=d.get("scopes"),
+            )
+    elif os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "rb") as f:
             creds = pickle.load(f)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+
+    if creds and creds.refresh_token:
+        try:
             creds.refresh(Request())
-        else:
-            if not os.path.exists(CREDENTIALS_FILE):
-                print("\n❌ credentials.json not found!")
-                return None, None
-            flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+        except Exception as e:
+            print(f"  ⚠️  Token refresh failed ({e}) — re-authenticating via browser")
+            creds = None
+
+    if not creds:
+        if not os.path.exists(CREDENTIALS_FILE):
+            print("\n❌ credentials.json not found!")
+            return None, None
+        flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=0)
+        with open("token.json", "w") as f:
+            _json.dump({
+                "token":          creds.token,
+                "refresh_token":  creds.refresh_token,
+                "token_uri":      creds.token_uri,
+                "client_id":      creds.client_id,
+                "client_secret":  creds.client_secret,
+                "scopes":         list(creds.scopes) if creds.scopes else SCOPES,
+                "universe_domain": "googleapis.com",
+                "account":        "",
+                "expiry":         creds.expiry.isoformat() + "Z" if creds.expiry else None,
+            }, f)
+
     return build("drive", "v3", credentials=creds), build("sheets", "v4", credentials=creds)
 
 # ============================================================================
@@ -711,6 +795,7 @@ async def run_custom_test_suite(test_name, test_description, drive_service, shee
 
 
 def main():
+    select_environment()
     print("\n🔐 Connecting to Google...")
     drive_service, sheets_service = get_google_services()
     if not drive_service:
