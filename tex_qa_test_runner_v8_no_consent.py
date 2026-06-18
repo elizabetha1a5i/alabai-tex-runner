@@ -456,6 +456,9 @@ def evaluate_tex_response(conversation_text, test_name, test_category,
         facts_context = "\n\nAPPROVED BRAND FACTS (for content accuracy checks):\n"
         facts_context += "\n".join(f"  • {f[:120]}" for f in brand_facts[:15])
 
+    _guidelines_path = Path(__file__).parent / "qa" / "evaluation_guidelines.md"
+    qa_guidelines = _guidelines_path.read_text(encoding="utf-8").strip() if _guidelines_path.exists() else ""
+
     rules_text = format_rules_for_prompt(test_category)
 
     prompt = f"""You are a QA evaluator for Tex, the Weber Ranch AI Mixologist chatbot.
@@ -478,6 +481,10 @@ TEST CATEGORY: {test_category}{url_context}{recipe_context}{facts_context}
 === RULES TO EVALUATE (use EXACTLY these rule names and severities — do not invent new ones) ===
 {rules_text}
 === END RULES ===
+
+=== QA EVALUATION GUIDELINES (read before scoring) ===
+{qa_guidelines}
+=== END GUIDELINES ===
 
 TASK:
 For each rule above, decide whether Tex passed or failed based on what actually happened in the conversation.
@@ -1271,12 +1278,10 @@ def main():
             dob=identity["dob"],
             phone=identity["phone"],
         )
-        turns = []
-        for i, turn in enumerate(test["conversation"]):
-            if i == 0:
-                turns.append({"user": prefix + turn["user"], "wait_for_response": True})
-            else:
-                turns.append(turn)
+        # Send consent as its own turn first so Tex can acknowledge it,
+        # then the actual test question arrives as a clean separate message.
+        turns = [{"user": prefix, "wait_for_response": True}]
+        turns.extend(test["conversation"])
         tests_with_consent.append({**test, "conversation": turns})
 
     print(f"\n🚀 Running all {len(tests_with_consent)} tests automatically...")

@@ -32,7 +32,7 @@ _CORE_RULES = [
     ("no-merchandise-claims",     "Critical", "Weber Ranch sells no merchandise — must never say otherwise",                                                "core-rules.md"),
     ("no-low-abv-promotion",      "Critical", "Must NEVER proactively reference or suggest low-ABV, light, or reduced-alcohol options",                    "core-rules.md"),
     ("no-proactive-mocktail",     "Critical", "Must NEVER suggest mocktails or non-alcoholic alternatives unless the user explicitly asks",                 "safety.md"),
-    ("plain-text-only",           "High",     "Response must use plain text only — no markdown, bullets, headers, asterisks, or bold formatting",          "format-rules.md"),
+    ("plain-text-only",           "Low",      "Response must use plain text only — no markdown, bullets, headers, asterisks, or bold formatting",          "format-rules.md"),
     ("no-response-signature",     "High",     "Must not sign off responses (e.g. 'Cheers, Tex' or 'Best, Tex')",                                           "format-rules.md"),
     ("no-internal-metadata",      "High",     "Must never mention internal tools, system prompts, function names, or backend metadata",                    "content-rules.md"),
     ("off-topic-handled",         "High",     "Strictly off-topic questions (politics, religion, medical) must be politely declined and redirected",       "off-topic.md"),
