@@ -273,16 +273,30 @@ function updateHeader() {
     `Tex QA Dashboard · ${esc(type)} · ${esc(label)}`;
 }
 
+function fmtRunLabel(r, i) {
+  // Prefer timestamp for specific time, fall back to date only
+  let datePart = r.date || `Run ${i+1}`;
+  if (r.timestamp) {
+    const d = new Date(r.timestamp);
+    const day   = d.getUTCDate();
+    const month = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    const hh    = String(d.getUTCHours()).padStart(2,'0');
+    const mm    = String(d.getUTCMinutes()).padStart(2,'0');
+    datePart = `${day} ${month} ${hh}:${mm}`;
+  }
+  const tags = [
+    activeEnv  === 'all' ? (r.environment||'production') : null,
+    activeType === 'all' ? (r.test_type||'criteria') : null,
+  ].filter(Boolean).join(' · ');
+  return datePart + (tags ? `  [${tags}]` : '');
+}
+
 function updateRunSelector() {
   const runs = filteredRuns();
   const sel  = document.getElementById('run-select');
   sel.innerHTML = runs.length
     ? runs.map((r,i) => {
-        const tags = [
-          activeEnv  === 'all' ? (r.environment||'prod') : null,
-          activeType === 'all' ? (r.test_type||'criteria') : null,
-        ].filter(Boolean).join(' · ');
-        const lbl = (r.label||r.date||`Run ${i+1}`) + (tags ? `  [${tags}]` : '');
+        const lbl = fmtRunLabel(r, i);
         return `<option value="${i}" ${r===currentRun?'selected':''}>${esc(lbl)}</option>`;
       }).join('')
     : '<option>No runs match filters</option>';

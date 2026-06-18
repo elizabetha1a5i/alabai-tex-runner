@@ -24,8 +24,9 @@ def load_csv(csv_path):
 
 
 def build_run_entry(rows, label=None, screenshots_dir=None, run_date=None):
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    label = label or datetime.utcnow().strftime("%B %Y")
+    now   = datetime.utcnow()
+    today = now.strftime("%Y-%m-%d")
+    label = label or now.strftime("%B %Y")
 
     total    = len(rows)
     statuses = [r.get("status", "").upper() for r in rows]
@@ -87,6 +88,7 @@ def build_run_entry(rows, label=None, screenshots_dir=None, run_date=None):
 
     return {
         "date":      today,
+        "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "label":     label,
         "total":     total,
         "pass":      passed,
@@ -119,6 +121,7 @@ def main():
     run_entry = build_run_entry(rows, args.label, args.screenshots_dir, run_date)
     run_entry["environment"] = args.environment
     run_entry["test_type"]   = getattr(args, "test_type")
+    run_entry["run_id"]      = f"{run_entry['timestamp']}-{args.environment}-{getattr(args, 'test_type')}"
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,14 +135,10 @@ def main():
     else:
         existing = {"runs": []}
 
-    # Remove any entry with the same date + environment + test_type (re-run replaces, but different types coexist)
+    # Remove any entry with the same run_id (exact re-run replaces; different times coexist)
     existing["runs"] = [
         r for r in existing["runs"]
-        if not (
-            r.get("date")        == run_entry["date"] and
-            r.get("environment") == run_entry["environment"] and
-            r.get("test_type")   == run_entry["test_type"]
-        )
+        if r.get("run_id") != run_entry["run_id"]
     ]
     existing["runs"].append(run_entry)
 
@@ -148,7 +147,7 @@ def main():
 
     out_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[OK] Snapshot written: {out_path}")
-    print(f"     Run: {run_entry['date']} | {run_entry['total']} tests | {run_entry['pass_rate']}% pass rate")
+    print(f"     Run: {run_entry['run_id']} | {run_entry['total']} tests | {run_entry['pass_rate']}% pass rate")
 
 
 if __name__ == "__main__":
