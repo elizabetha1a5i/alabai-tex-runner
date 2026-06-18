@@ -228,6 +228,7 @@
     <input type="date" id="date-from" />
     <label style="color:var(--text-light)">–</label>
     <input type="date" id="date-to" />
+    <button class="toolbar-btn" onclick="clearDates()" title="Show all dates">✕ Clear</button>
   </div>
 </div>
 
@@ -626,6 +627,13 @@ function bindNav() {
   document.getElementById('date-to').addEventListener('change',   e => { dateTo  =e.target.value; currentRun=null; render(); });
 }
 
+function clearDates() {
+  dateFrom=''; dateTo='';
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  currentRun=null; render();
+}
+
 async function init() {
   bindNav();
   try {
@@ -637,14 +645,7 @@ async function init() {
       const kb = b.timestamp || b.date || '';
       return ka.localeCompare(kb);
     });
-    if (allRuns.length) {
-      const dates = allRuns.map(r=>r.date).filter(Boolean).sort();
-      if (dates.length) {
-        document.getElementById('date-from').value = dates[0];
-        document.getElementById('date-to').value   = dates[dates.length-1];
-        dateFrom=dates[0]; dateTo=dates[dates.length-1];
-      }
-    }
+    // Don't pre-fill date inputs — leave blank so all runs show by default
     if (!allRuns.length) {
       document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
       return;
