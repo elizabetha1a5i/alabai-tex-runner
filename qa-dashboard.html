@@ -1,957 +1,616 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tex QA Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tex QA Dashboard — Weber Ranch</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --wr-blue:       #1A72BC;
+    --wr-blue-dark:  #145A96;
+    --wr-blue-pale:  #E8F3FC;
+    --wr-blue-soft:  #D0E8F7;
+    --text:          #0F1F2E;
+    --text-mid:      #3D5166;
+    --text-light:    #7A92A8;
+    --border:        #D5E3EE;
+    --bg:            #F4F8FC;
+    --white:         #FFFFFF;
+    --green:         #16A34A;
+    --green-pale:    #DCFCE7;
+    --amber:         #B45309;
+    --amber-pale:    #FEF3C7;
+    --amber-border:  #FDE68A;
+    --red:           #B91C1C;
+    --red-pale:      #FEE2E2;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); }
 
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: #f5f5f5;
-      color: #111827;
-      font-size: 14px;
-      line-height: 1.5;
-    }
+  /* Header */
+  .header { background:var(--wr-blue); padding:0 48px; display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .header-left { display:flex; align-items:center; gap:14px; }
+  .header-logo { font-size:20px; font-weight:800; color:#fff; letter-spacing:-.5px; }
+  .header-logo span { opacity:.55; font-weight:400; font-size:13px; margin-left:4px; vertical-align:middle; }
+  .header-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .badge { font-size:10px; font-weight:600; letter-spacing:.8px; text-transform:uppercase; padding:3px 9px; border-radius:20px; }
+  .badge.prod      { background:var(--green-pale);  color:var(--green); }
+  .badge.staging   { background:var(--wr-blue-pale); color:var(--wr-blue-dark); }
+  .badge.criteria  { background:#EDE9FE; color:#5B21B6; }
+  .badge.custom    { background:var(--amber-pale);  color:var(--amber); }
+  .badge.feedback  { background:#FCE7F3; color:#BE185D; }
+  .header-right { text-align:right; font-size:12px; color:rgba(255,255,255,.7); line-height:1.7; }
+  .header-right strong { color:#fff; font-weight:600; }
 
-    /* ── Header ── */
-    .header {
-      background: #fff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 60px;
-      flex-wrap: wrap;
-    }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 1 1 auto;
-      flex-wrap: wrap;
-    }
-    .header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      white-space: nowrap;
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 10px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.4px;
-      text-transform: uppercase;
-    }
-    .chip-green { background: #dcfce7; color: #15803d; }
-    .header-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 1px;
-      white-space: nowrap;
-    }
-    .header-powered {
-      font-size: 11px;
-      color: #6b7280;
-      font-weight: 500;
-    }
-    .header-lastrun {
-      font-size: 11px;
-      color: #9ca3af;
-    }
+  /* Toolbar */
+  .toolbar { background:var(--wr-blue-dark); padding:7px 48px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .toolbar-btn { border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); border-radius:6px; padding:6px 13px; font-size:11px; font-weight:500; cursor:pointer; font-family:'Inter',sans-serif; color:rgba(255,255,255,.85); transition:background .15s; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+  .toolbar-btn:hover { background:rgba(255,255,255,.2); }
+  .toolbar-btn.primary { background:#fff; color:var(--wr-blue-dark); border-color:#fff; font-weight:600; }
 
-    /* ── Tab bar ── */
-    .tab-bar {
-      background: #fff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0 24px;
-      display: flex;
-      align-items: flex-end;
-      gap: 0;
-    }
-    .tab-btn {
-      padding: 10px 18px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #6b7280;
-      border: none;
-      border-bottom: 2px solid transparent;
-      background: none;
-      cursor: pointer;
-      transition: color .15s, border-color .15s;
-      white-space: nowrap;
-      font-family: inherit;
-    }
-    .tab-btn:hover { color: #374151; }
-    .tab-btn.active { color: #111827; border-bottom-color: #22c55e; font-weight: 600; }
+  /* Nav */
+  .nav-bar { background:var(--white); border-bottom:1px solid var(--border); padding:0 48px; display:flex; align-items:center; }
+  .tab-btn { padding:11px 18px; font-size:13px; font-weight:500; color:var(--text-light); border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; white-space:nowrap; }
+  .tab-btn:hover { color:var(--text-mid); }
+  .tab-btn.active { color:var(--wr-blue); border-bottom-color:var(--wr-blue); font-weight:600; }
+  .nav-div { width:1px; height:20px; background:var(--border); margin:0 10px; }
+  .type-label { font-size:11px; font-weight:500; color:var(--text-light); padding:0 6px 0 4px; white-space:nowrap; }
+  .pill-btn { padding:4px 11px; border-radius:20px; font-size:11px; font-weight:500; border:1px solid var(--border); background:var(--bg); color:var(--text-mid); cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; margin:8px 2px; }
+  .pill-btn:hover { border-color:var(--wr-blue); color:var(--wr-blue); }
+  .pill-btn.active { background:var(--wr-blue); border-color:var(--wr-blue); color:#fff; font-weight:600; }
 
-    /* ── Type filter pills ── */
-    .type-filter-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 12px 24px 0;
-      flex-wrap: wrap;
-    }
-    .type-filter-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: #6b7280;
-      margin-right: 4px;
-    }
-    .pill-btn {
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 500;
-      border: 1px solid #e5e7eb;
-      background: #fff;
-      color: #6b7280;
-      cursor: pointer;
-      transition: all .15s;
-      font-family: inherit;
-    }
-    .pill-btn:hover { border-color: #22c55e; color: #374151; }
-    .pill-btn.active { background: #22c55e; border-color: #22c55e; color: #fff; font-weight: 600; }
+  /* Filter bar */
+  .filter-bar { background:var(--bg); border-bottom:1px solid var(--border); padding:8px 48px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .filter-bar label { font-size:11px; font-weight:500; color:var(--text-light); white-space:nowrap; }
+  .filter-bar select, .filter-bar input[type="date"] { border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:12px; font-family:'Inter',sans-serif; background:var(--white); color:var(--text); outline:none; cursor:pointer; }
+  .filter-bar select:focus, .filter-bar input[type="date"]:focus { border-color:var(--wr-blue); }
+  .filter-group { display:flex; align-items:center; gap:6px; }
+  .filter-sep { color:var(--border); }
 
-    /* ── Page ── */
-    .page { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+  /* Main */
+  .main { max-width:1080px; margin:0 auto; padding:28px 48px; }
+  .section-title { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--text-light); margin-bottom:10px; }
 
-    /* ── Empty state ── */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 340px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-      color: #6b7280;
-      gap: 10px;
-      padding: 40px;
-      text-align: center;
-    }
-    .empty-state svg { opacity: .35; }
-    .empty-state h2 { font-size: 16px; font-weight: 600; color: #374151; }
-    .empty-state p { font-size: 13px; }
+  /* Warning banner */
+  .warn-banner { background:#FFFBEB; border:1px solid var(--amber-border); border-radius:8px; padding:11px 15px; margin-bottom:18px; font-size:12px; color:#92400E; line-height:1.55; }
+  .warn-banner strong { font-weight:600; }
 
-    /* ── Run selector ── */
-    .controls-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .controls-bar label {
-      font-size: 13px;
-      font-weight: 500;
-      color: #374151;
-    }
-    select {
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 13px;
-      font-family: inherit;
-      background: #fff;
-      color: #111827;
-      cursor: pointer;
-      outline: none;
-      transition: border-color .15s;
-    }
-    select:focus { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.15); }
+  /* Summary */
+  .summary-card { background:var(--wr-blue-pale); border:1px solid var(--wr-blue-soft); border-radius:10px; padding:13px 18px; margin-bottom:18px; font-size:12px; color:var(--text-mid); line-height:1.65; }
+  .summary-card strong { color:var(--wr-blue-dark); }
 
-    /* ── Summary cards ── */
-    .summary-cards {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-    @media (max-width: 700px) {
-      .summary-cards { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 380px) {
-      .summary-cards { grid-template-columns: 1fr; }
-    }
-    .card {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 0 0 1px rgba(0,0,0,.03);
-      padding: 18px 20px;
-    }
-    .card-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 6px;
-    }
-    .card-value {
-      font-size: 32px;
-      font-weight: 700;
-      line-height: 1.1;
-    }
-    .card-sub {
-      font-size: 11px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
-    .green { color: #22c55e; }
-    .amber { color: #f59e0b; }
-    .red   { color: #ef4444; }
-    .grey  { color: #6b7280; }
-    .blue  { color: #3b82f6; }
+  /* KPIs */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .kpi { background:var(--white); border-radius:10px; padding:20px; border:1px solid var(--border); }
+  .kpi-label { font-size:10px; color:var(--text-light); font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
+  .kpi-num { font-size:36px; font-weight:700; color:var(--text); line-height:1; margin-bottom:6px; }
+  .kpi-num .unit { font-size:17px; font-weight:400; color:var(--text-light); }
+  .kpi-sub { font-size:11px; }
+  .pill { display:inline-flex; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; }
+  .pill.green  { background:var(--green-pale);  color:var(--green); }
+  .pill.amber  { background:var(--amber-pale);  color:var(--amber); }
+  .pill.blue   { background:var(--wr-blue-pale); color:var(--wr-blue-dark); }
+  .pill.red    { background:var(--red-pale);     color:var(--red); }
 
-    /* ── Charts row ── */
-    .charts-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-    @media (max-width: 700px) {
-      .charts-row { grid-template-columns: 1fr; }
-    }
-    .chart-card {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 0 0 1px rgba(0,0,0,.03);
-      padding: 18px 20px;
-    }
-    .chart-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 14px;
-    }
-    .chart-wrap { position: relative; height: 200px; }
+  /* Two-col */
+  .two-col { display:grid; grid-template-columns:1.3fr 1fr; gap:12px; margin-bottom:18px; }
+  .card { background:var(--white); border-radius:10px; border:1px solid var(--border); padding:20px; }
+  .card h3 { font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
+  .card-sub { font-size:12px; color:var(--text-light); margin-bottom:16px; }
 
-    /* ── Filter bar ── */
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .filter-bar input[type="text"] {
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 13px;
-      font-family: inherit;
-      background: #fff;
-      color: #111827;
-      outline: none;
-      min-width: 180px;
-      flex: 1 1 180px;
-      transition: border-color .15s;
-    }
-    .filter-bar input[type="text"]:focus {
-      border-color: #22c55e;
-      box-shadow: 0 0 0 2px rgba(34,197,94,.15);
-    }
-    .filter-bar input[type="text"]::placeholder { color: #9ca3af; }
+  /* Category bars */
+  .cat-bars { display:flex; flex-direction:column; gap:10px; }
+  .cat-row { display:flex; flex-direction:column; gap:4px; }
+  .cat-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); }
+  .cat-name { font-weight:500; }
+  .cat-pct  { font-weight:600; color:var(--text); }
+  .bar-track { background:#EEF3F8; border-radius:4px; height:7px; }
+  .bar-fill  { height:7px; border-radius:4px; }
+  .bar-fill.full    { background:#22C55E; }
+  .bar-fill.partial { background:#F59E0B; }
+  .bar-fill.fail    { background:#EF4444; }
 
-    /* ── Table ── */
-    .table-card {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 0 0 1px rgba(0,0,0,.03);
-      padding: 18px 20px;
-      margin-bottom: 24px;
-    }
-    .table-section-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 14px;
-    }
-    .table-wrap { overflow-x: auto; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    thead th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: #9ca3af;
-      padding: 8px 10px;
-      border-bottom: 1px solid #f3f4f6;
-      white-space: nowrap;
-    }
-    tbody tr {
-      border-bottom: 1px solid #f9fafb;
-      transition: background .1s;
-    }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #f9fafb; }
-    td {
-      padding: 9px 10px;
-      vertical-align: middle;
-      color: #374151;
-    }
-    td.id-col {
-      font-family: 'Menlo', 'Consolas', monospace;
-      font-size: 11px;
-      color: #6b7280;
-      white-space: nowrap;
-    }
-    td.name-col { font-weight: 500; min-width: 160px; }
-    td.cat-col  { white-space: nowrap; color: #6b7280; }
-    td.score-col { font-family: monospace; font-size: 12px; white-space: nowrap; }
-    td.fail-col { font-size: 12px; color: #ef4444; }
-    td.notes-col { font-size: 12px; color: #6b7280; max-width: 200px; }
+  /* Donut */
+  .donut-wrap { display:flex; align-items:center; gap:22px; }
+  .donut-legend { display:flex; flex-direction:column; gap:9px; flex:1; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-mid); }
+  .legend-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .legend-val { font-weight:600; color:var(--text); margin-left:auto; padding-left:12px; }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      white-space: nowrap;
-    }
-    .badge-pass  { background: #dcfce7; color: #15803d; }
-    .badge-warn  { background: #fef3c7; color: #b45309; }
-    .badge-fail  { background: #fee2e2; color: #b91c1c; }
-    .badge-error { background: #f3f4f6; color: #4b5563; }
+  /* Trend */
+  .trend-card { background:var(--white); border-radius:10px; border:1px solid var(--border); padding:20px; margin-bottom:18px; }
+  .trend-card h3 { font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
+  .trend-wrap { margin-top:16px; overflow-x:auto; }
 
-    .no-results {
-      text-align: center;
-      color: #9ca3af;
-      padding: 32px;
-      font-size: 13px;
-    }
+  /* Issue Tracker */
+  .issue-list { display:flex; flex-direction:column; gap:0; }
+  .issue-item { border:1px solid var(--border); border-radius:0; padding:13px 16px; background:var(--white); border-top:none; }
+  .issue-item:first-child { border-radius:10px 10px 0 0; border-top:1px solid var(--border); }
+  .issue-item:last-child  { border-radius:0 0 10px 10px; }
+  .issue-item:only-child  { border-radius:10px; }
+  .issue-top { display:flex; align-items:baseline; gap:6px; margin-bottom:5px; flex-wrap:wrap; }
+  .issue-name  { font-size:13px; font-weight:500; color:var(--text); }
+  .issue-count { font-size:11px; color:var(--text-light); }
+  .issue-meta  { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .issue-score { font-size:13px; font-weight:700; color:var(--text); }
+  .issue-delta { font-size:11px; font-weight:500; padding:2px 7px; border-radius:10px; }
+  .issue-delta.up   { background:var(--green-pale);  color:var(--green); }
+  .issue-delta.down { background:var(--red-pale);    color:var(--red); }
+  .issue-delta.same { background:#F3F4F6; color:#6B7280; }
+  .issue-resolved { font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--green); background:var(--green-pale); padding:2px 8px; border-radius:10px; }
+  .issue-open     { font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--amber); background:var(--amber-pale); padding:2px 8px; border-radius:10px; }
 
-    /* ── Partials panel ── */
-    .partials-section { margin-bottom: 24px; }
-    .partials-header {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .partials-header .count-chip {
-      background: #fef3c7;
-      color: #b45309;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 0 7px;
-      line-height: 18px;
-    }
-    .partials-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
-    }
-    .partial-card {
-      background: #fff;
-      border: 1px solid #fde68a;
-      border-left: 4px solid #f59e0b;
-      border-radius: 8px;
-      padding: 14px 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.05);
-    }
-    .partial-card-id {
-      font-family: monospace;
-      font-size: 11px;
-      color: #9ca3af;
-      margin-bottom: 2px;
-    }
-    .partial-card-name {
-      font-weight: 600;
-      font-size: 13px;
-      color: #111827;
-      margin-bottom: 6px;
-    }
-    .partial-card-meta {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      font-size: 11px;
-      color: #6b7280;
-      margin-bottom: 6px;
-    }
-    .partial-card-meta span { white-space: nowrap; }
-    .partial-card-notes {
-      font-size: 12px;
-      color: #78716c;
-      font-style: italic;
-    }
-    .partial-card-fail {
-      font-size: 11px;
-      color: #d97706;
-      margin-top: 4px;
-    }
-  </style>
+  /* Partials */
+  .partial-list { display:flex; flex-direction:column; gap:10px; }
+  .partial-item { background:#FFFBEB; border:1px solid var(--amber-border); border-left:3px solid #F59E0B; border-radius:8px; padding:12px 14px; }
+  .partial-header { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:5px; }
+  .partial-name    { font-size:13px; font-weight:600; color:var(--text); }
+  .partial-score   { font-size:11px; font-weight:600; color:#D97706; background:#FEF3C7; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .partial-summary { font-size:12px; color:#6B7280; line-height:1.55; }
+
+  .disclaimer { font-size:11px; color:var(--text-light); padding:13px 16px; background:var(--white); border-radius:10px; border:1px solid var(--border); line-height:1.6; margin-bottom:20px; }
+  .footer { text-align:center; padding:18px; font-size:11px; color:var(--text-light); border-top:1px solid var(--border); }
+  .empty { text-align:center; padding:80px 20px; }
+  .empty h2 { font-size:16px; font-weight:600; color:var(--text-mid); margin-bottom:8px; }
+  .empty p  { font-size:13px; color:var(--text-light); }
+
+  @media print {
+    body { background:white; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .toolbar,.nav-bar,.filter-bar { display:none !important; }
+    .card,.kpi,.partial-item,.issue-item { break-inside:avoid; }
+  }
+  @media (max-width:800px) {
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .two-col  { grid-template-columns:1fr; }
+    .main,.header,.toolbar,.nav-bar,.filter-bar { padding-left:16px; padding-right:16px; }
+  }
+</style>
 </head>
 <body>
 
-<!-- Header -->
 <header class="header">
   <div class="header-left">
-    <h1>Tex QA Dashboard</h1>
-    <span class="chip chip-green" id="header-env-chip">All Environments</span>
-    <span class="chip chip-green" id="header-type-chip">All Tests</span>
+    <span class="header-logo">Tex QA <span>Weber Ranch</span></span>
+    <div class="header-tags" id="header-tags"></div>
   </div>
   <div class="header-right">
-    <span class="header-powered">Powered by Alibi AI</span>
-    <span class="header-lastrun" id="header-lastrun">—</span>
+    <strong id="header-date">—</strong>
   </div>
 </header>
 
-<!-- Environment tabs -->
-<nav class="tab-bar" id="env-tabs">
+<div class="toolbar">
+  <a href="index.html" class="toolbar-btn">&#8592; Back</a>
+  <button class="toolbar-btn primary" onclick="exportPDF()">&#8659; Export PDF</button>
+  <button class="toolbar-btn" onclick="exportCSV()">&#8595; Export CSV</button>
+</div>
+
+<nav class="nav-bar">
   <button class="tab-btn active" data-env="all">All</button>
   <button class="tab-btn" data-env="production">Production</button>
   <button class="tab-btn" data-env="staging">Staging</button>
-</nav>
-
-<!-- Test type filter pills -->
-<div class="type-filter-bar" id="type-filters">
-  <span class="type-filter-label">Test type:</span>
+  <div class="nav-div"></div>
+  <span class="type-label">Type:</span>
   <button class="pill-btn active" data-type="all">All</button>
   <button class="pill-btn" data-type="criteria">Criteria</button>
   <button class="pill-btn" data-type="custom">Custom</button>
   <button class="pill-btn" data-type="feedback">Feedback</button>
+</nav>
+
+<div class="filter-bar">
+  <div class="filter-group">
+    <label for="run-select">Run:</label>
+    <select id="run-select"></select>
+  </div>
+  <div class="filter-group">
+    <label for="date-from">From:</label>
+    <input type="date" id="date-from" />
+    <span class="filter-sep">–</span>
+    <input type="date" id="date-to" />
+  </div>
 </div>
 
-<!-- Main -->
-<main class="page" id="main-content">
-  <!-- populated by JS -->
-</main>
+<main class="main" id="main"></main>
+<footer class="footer" id="footer">Tex QA Dashboard · Weber Ranch</footer>
 
 <script>
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const $ = (sel, ctx = document) => ctx.querySelector(sel);
-const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+// ── State ──────────────────────────────────────────────────────────────────
+let allRuns = [], currentRun = null, activeEnv = 'all', activeType = 'all';
+let dateFrom = '', dateTo = '';
 
-function statusBadge(status) {
-  const map = {
-    PASS:  ['badge-pass',  '&#10003;', 'PASS'],
-    WARN:  ['badge-warn',  '~', 'WARN'],
-    FAIL:  ['badge-fail',  '&#10005;', 'FAIL'],
-    ERROR: ['badge-error', '!', 'ERROR'],
-  };
-  const [cls, icon, label] = map[status] || map['ERROR'];
-  return `<span class="badge ${cls}">${icon} ${label}</span>`;
-}
-
-function esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let allRuns = [];
-let currentRun = null;
-let activeEnv  = 'all';
-let activeType = 'all';
-let lineChart  = null;
-let barChart   = null;
-
-const ENV_COLORS = {
-  production: { border: '#22c55e', bg: 'rgba(34,197,94,.08)' },
-  staging:    { border: '#3b82f6', bg: 'rgba(59,130,246,.08)' },
-};
-const ENV_LABELS = { production: 'Production', staging: 'Staging', all: 'All Environments' };
-const TYPE_LABELS = { criteria: 'Criteria', custom: 'Custom', feedback: 'Feedback', all: 'All Tests' };
-
-// ── Filtered runs ─────────────────────────────────────────────────────────────
 function filteredRuns() {
   return allRuns.filter(r => {
-    const envMatch  = activeEnv  === 'all' || (r.environment || 'production') === activeEnv;
-    const typeMatch = activeType === 'all' || (r.test_type || 'criteria') === activeType;
-    return envMatch && typeMatch;
+    const e = r.environment || 'production';
+    const t = r.test_type   || 'criteria';
+    const d = r.date        || '';
+    return (activeEnv  === 'all' || e === activeEnv) &&
+           (activeType === 'all' || t === activeType) &&
+           (!dateFrom  || d >= dateFrom) &&
+           (!dateTo    || d <= dateTo);
   });
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-function renderEmpty(msg) {
-  $('#main-content').innerHTML = `
-    <div class="empty-state">
-      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#6b7280" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round"
-          d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5l9-7.5 9 7.5V21H3V10.5z" />
-      </svg>
-      <h2>No data yet</h2>
-      <p>${esc(msg)}</p>
-    </div>`;
+// ── Helpers ────────────────────────────────────────────────────────────────
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+function pct(n,t) { return t ? Math.round((n/t)*100) : 0; }
+
+// ── Header ─────────────────────────────────────────────────────────────────
+function updateHeader() {
+  if (!currentRun) return;
+  const env  = currentRun.environment || 'production';
+  const type = currentRun.test_type   || 'criteria';
+  document.getElementById('header-tags').innerHTML =
+    `<span class="badge ${env}">${esc(env)}</span>` +
+    `<span class="badge ${type}">${esc(type)}</span>`;
+  document.getElementById('header-date').textContent =
+    currentRun.label || fmtDate(currentRun.date);
+  document.getElementById('footer').textContent =
+    `Tex QA Dashboard · ${esc(type)} · ${esc(currentRun.label || fmtDate(currentRun.date))}`;
 }
 
-// ── Full render ───────────────────────────────────────────────────────────────
-function renderDashboard() {
+// ── Run selector ───────────────────────────────────────────────────────────
+function updateRunSelector() {
   const runs = filteredRuns();
-  if (runs.length === 0) {
-    renderEmpty('No runs match the current filter. Try selecting All or a different test type.');
-    return;
-  }
-
-  // Pick currentRun from filtered set (keep previous if still valid, else latest)
-  if (!currentRun || !runs.includes(currentRun)) {
-    currentRun = runs[runs.length - 1];
-  }
-
-  updateHeaderChips();
-  updateHeaderLastRun();
-
-  const main = $('#main-content');
-  main.innerHTML = buildHTML(runs);
-  bindFilters();
-  renderLineChart(runs);
-  renderBarChart();
-  renderPartials();
-  renderTable();
+  const sel  = document.getElementById('run-select');
+  sel.innerHTML = runs.length
+    ? runs.map((r, i) => {
+        const tags = [
+          activeEnv  === 'all' ? (r.environment || 'prod') : null,
+          activeType === 'all' ? (r.test_type   || 'criteria') : null,
+        ].filter(Boolean).join(' · ');
+        const lbl = (r.label || r.date || `Run ${i+1}`) + (tags ? `  [${tags}]` : '');
+        return `<option value="${i}" ${r === currentRun ? 'selected' : ''}>${esc(lbl)}</option>`;
+      }).join('')
+    : '<option>No runs match filters</option>';
 }
 
-function updateHeaderChips() {
-  const envChip = $('#header-env-chip');
-  const typeChip = $('#header-type-chip');
-  if (envChip)  envChip.textContent  = ENV_LABELS[activeEnv]  || activeEnv;
-  if (typeChip) typeChip.textContent = TYPE_LABELS[activeType] || activeType;
-}
+// ── Issue Tracker (feedback runs) ─────────────────────────────────────────
+function buildIssueTracker(r, prevRun) {
+  const cats = Object.entries(r.categories || {});
+  if (!cats.length) return '';
 
-function buildHTML(runs) {
-  const r = currentRun;
-  const cleanCats = Object.values(r.categories || {}).filter(c => c.fail === 0 && c.partial === 0).length;
-  const totalCats = Object.keys(r.categories || {}).length;
+  const prevCats = prevRun ? (prevRun.categories || {}) : {};
+  const resolved = cats.filter(([,v]) => pct((v.pass||0)+(v.partial||0), v.total||0) >= 80).length;
 
-  const runOptions = runs.map((run, i) => {
-    const envTag = (run.environment && activeEnv === 'all') ? ` [${run.environment}]` : '';
-    const typeTag = (run.test_type && activeType === 'all') ? ` (${run.test_type})` : '';
-    return `<option value="${runs.indexOf(run)}" ${run === r ? 'selected' : ''}>${esc((run.label || run.date) + envTag + typeTag)}</option>`;
-  });
+  const items = cats.sort((a,b) => a[0].localeCompare(b[0])).map(([name, v]) => {
+    const total   = v.total || 0;
+    const passing = (v.pass || 0) + (v.partial || 0);
+    const rate    = pct(passing, total);
+    const isRes   = rate >= 80;
 
-  const runSelector = runs.length > 1 ? `
-    <div class="controls-bar">
-      <label for="run-select">Run:</label>
-      <select id="run-select">${runOptions.join('')}</select>
-    </div>` : '';
+    // Delta vs previous run
+    let deltaHTML = '';
+    if (prevCats[name]) {
+      const pv     = prevCats[name];
+      const prevRate = pct((pv.pass||0)+(pv.partial||0), pv.total||0);
+      const diff   = rate - prevRate;
+      if (diff > 0)      deltaHTML = `<span class="issue-delta up">&#8593; from ${prevRate}%</span>`;
+      else if (diff < 0) deltaHTML = `<span class="issue-delta down">&#8595; from ${prevRate}%</span>`;
+      else               deltaHTML = `<span class="issue-delta same">&#8594; maintained</span>`;
+    }
 
-  const categories = Object.keys(r.categories || {});
-  const catOptions = ['All', ...categories].map(c =>
-    `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    const statusBadge = isRes
+      ? `<span class="issue-resolved">Resolved</span>`
+      : `<span class="issue-open">Open</span>`;
+
+    return `
+      <div class="issue-item">
+        <div class="issue-top">
+          <span class="issue-name">${esc(name)}</span>
+          <span class="issue-count">· ${total} variant${total !== 1 ? 's' : ''} tested</span>
+        </div>
+        <div class="issue-meta">
+          <span class="issue-score">${passing}/${total} (${rate}%)</span>
+          ${deltaHTML}
+          ${statusBadge}
+          <span style="margin-left:auto;font-size:11px;color:var(--text-light)">${esc(r.date || '')}</span>
+        </div>
+      </div>`;
+  }).join('');
 
   return `
-    ${runSelector}
-
-    <div class="summary-cards">
-      <div class="card">
-        <div class="card-label">Pass Rate</div>
-        <div class="card-value green">${r.pass_rate ?? Math.round((r.pass / r.total) * 100)}%</div>
-        <div class="card-sub">${r.pass} of ${r.total} tests</div>
+    <div class="section-title">Issue Tracker</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border)">
+        <h3>Feedback Issues — Results</h3>
+        <p class="card-sub" style="margin-bottom:0">Resolved = 80%+ pass rate &nbsp;·&nbsp; ${resolved} of ${cats.length} resolved</p>
       </div>
-      <div class="card">
-        <div class="card-label">Tests Run</div>
-        <div class="card-value">${r.total}</div>
-        <div class="card-sub">${r.label || r.date}</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Partials</div>
-        <div class="card-value amber">${r.partial ?? 0}</div>
-        <div class="card-sub">need monitoring</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Clean Categories</div>
-        <div class="card-value green">${cleanCats}<span style="font-size:16px;color:#9ca3af"> / ${totalCats}</span></div>
-        <div class="card-sub">0 fail &amp; 0 partial</div>
-      </div>
-    </div>
-
-    <div class="charts-row">
-      <div class="chart-card">
-        <div class="chart-title">Pass Rate Over Time</div>
-        <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Category Breakdown</div>
-        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="table-card">
-      <div class="table-section-title">Test Results</div>
-      <div class="filter-bar">
-        <select id="filter-cat">${catOptions}</select>
-        <select id="filter-status">
-          <option value="All">All Statuses</option>
-          <option value="PASS">PASS</option>
-          <option value="WARN">WARN</option>
-          <option value="FAIL">FAIL</option>
-          <option value="ERROR">ERROR</option>
-        </select>
-        <input type="text" id="filter-search" placeholder="Search by name or ID…" />
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Score</th>
-              <th>Failures</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="results-tbody"></tbody>
-        </table>
-        <div id="no-results" class="no-results" style="display:none">No matching tests.</div>
-      </div>
-    </div>
-
-    <div id="partials-section" class="partials-section" style="display:none"></div>
-  `;
-}
-
-// ── Line chart ────────────────────────────────────────────────────────────────
-function renderLineChart(runs) {
-  const ctx = $('#lineChart');
-  if (!ctx) return;
-  if (lineChart) { lineChart.destroy(); lineChart = null; }
-
-  const sorted = [...runs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-  let datasets;
-  if (activeEnv === 'all') {
-    // Separate line per environment
-    const envGroups = {};
-    sorted.forEach(r => {
-      const env = r.environment || 'production';
-      if (!envGroups[env]) envGroups[env] = [];
-      envGroups[env].push(r);
-    });
-
-    // Build a unified x-axis from all dates
-    const allDates = [...new Set(sorted.map(r => r.date || ''))].sort();
-    const labels = allDates.map(d => {
-      const run = sorted.find(r => r.date === d);
-      return run ? (run.label || run.date) : d;
-    });
-
-    datasets = Object.entries(envGroups).map(([env, envRuns]) => {
-      const color = ENV_COLORS[env] || { border: '#6b7280', bg: 'rgba(107,114,128,.08)' };
-      const dataMap = {};
-      envRuns.forEach(r => { dataMap[r.date || ''] = r.pass_rate ?? Math.round((r.pass / r.total) * 100); });
-      return {
-        label: ENV_LABELS[env] || env,
-        data: allDates.map(d => dataMap[d] ?? null),
-        borderColor: color.border,
-        backgroundColor: color.bg,
-        pointBackgroundColor: color.border,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        borderWidth: 2,
-        tension: 0.3,
-        fill: false,
-        spanGaps: true,
-      };
-    });
-
-    lineChart = new Chart(ctx, {
-      type: 'line',
-      data: { labels, datasets },
-      options: chartLineOptions(true),
-    });
-  } else {
-    const labels = sorted.map(r => r.label || r.date);
-    const data   = sorted.map(r => r.pass_rate ?? Math.round((r.pass / r.total) * 100));
-    const color  = ENV_COLORS[activeEnv] || { border: '#22c55e', bg: 'rgba(34,197,94,.08)' };
-
-    lineChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Pass Rate %',
-          data,
-          borderColor: color.border,
-          backgroundColor: color.bg,
-          pointBackgroundColor: color.border,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true,
-        }]
-      },
-      options: chartLineOptions(false),
-    });
-  }
-}
-
-function chartLineOptions(showLegend) {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: showLegend,
-        position: 'bottom',
-        labels: { font: { size: 11 }, boxWidth: 10, padding: 10 },
-      },
-      tooltip: {
-        callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
-      }
-    },
-    scales: {
-      y: {
-        min: 0, max: 100,
-        ticks: { callback: v => v + '%', font: { size: 11 }, color: '#9ca3af' },
-        grid: { color: '#f3f4f6' },
-      },
-      x: {
-        ticks: { font: { size: 11 }, color: '#9ca3af' },
-        grid: { display: false },
-      }
-    }
-  };
-}
-
-// ── Bar chart ─────────────────────────────────────────────────────────────────
-function renderBarChart() {
-  const ctx = $('#barChart');
-  if (!ctx) return;
-  if (barChart) { barChart.destroy(); barChart = null; }
-
-  const cats = Object.entries(currentRun.categories || {});
-  const labels  = cats.map(([k]) => k);
-  const pass    = cats.map(([, v]) => v.pass    ?? 0);
-  const partial = cats.map(([, v]) => v.partial ?? 0);
-  const fail    = cats.map(([, v]) => v.fail    ?? 0);
-
-  barChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Pass',    data: pass,    backgroundColor: '#22c55e' },
-        { label: 'Partial', data: partial, backgroundColor: '#f59e0b' },
-        { label: 'Fail',    data: fail,    backgroundColor: '#ef4444' },
-      ]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { font: { size: 11 }, boxWidth: 10, padding: 10 }
-        }
-      },
-      scales: {
-        x: {
-          stacked: true,
-          ticks: { font: { size: 11 }, color: '#9ca3af', precision: 0 },
-          grid: { color: '#f3f4f6' },
-        },
-        y: {
-          stacked: true,
-          ticks: { font: { size: 11 }, color: '#6b7280' },
-          grid: { display: false },
-        }
-      }
-    }
-  });
-}
-
-// ── Table ─────────────────────────────────────────────────────────────────────
-function allTests() {
-  const tests    = (currentRun.tests    || []).map(t => ({ ...t, status: t.status || 'PASS' }));
-  const partials = (currentRun.partials || []).map(t => ({ ...t, status: t.status || 'WARN' }));
-  return [...tests, ...partials];
-}
-
-function renderTable() {
-  const cat    = $('#filter-cat')?.value    || 'All';
-  const status = $('#filter-status')?.value || 'All';
-  const search = ($('#filter-search')?.value || '').toLowerCase().trim();
-
-  let rows = allTests();
-
-  if (cat !== 'All')    rows = rows.filter(r => r.category === cat);
-  if (status !== 'All') rows = rows.filter(r => r.status === status);
-  if (search)           rows = rows.filter(r =>
-    (r.id   || '').toLowerCase().includes(search) ||
-    (r.name || '').toLowerCase().includes(search)
-  );
-
-  rows.sort((a, b) => {
-    const cc = (a.category || '').localeCompare(b.category || '');
-    if (cc !== 0) return cc;
-    return (a.id || '').localeCompare(b.id || '');
-  });
-
-  const tbody = $('#results-tbody');
-  const noRes = $('#no-results');
-  if (!tbody) return;
-
-  if (rows.length === 0) {
-    tbody.innerHTML = '';
-    if (noRes) noRes.style.display = 'block';
-    return;
-  }
-  if (noRes) noRes.style.display = 'none';
-
-  const failures = r => [r.critical_failures, r.high_failures].filter(Boolean).join(', ');
-
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td class="id-col">${esc(r.id)}</td>
-      <td class="name-col">${esc(r.name)}</td>
-      <td class="cat-col">${esc(r.category)}</td>
-      <td>${statusBadge(r.status)}</td>
-      <td class="score-col">${esc(r.score)}</td>
-      <td class="fail-col">${esc(failures(r))}</td>
-      <td class="notes-col">${esc(r.notes)}</td>
-    </tr>`).join('');
-}
-
-// ── Partials panel ────────────────────────────────────────────────────────────
-function renderPartials() {
-  const section = $('#partials-section');
-  if (!section) return;
-  const partials = currentRun.partials || [];
-  if (partials.length === 0) { section.style.display = 'none'; return; }
-
-  section.style.display = 'block';
-  section.innerHTML = `
-    <div class="partials-header">
-      Partials to Monitor
-      <span class="count-chip">${partials.length}</span>
-    </div>
-    <div class="partials-grid">
-      ${partials.map(p => {
-        const fails = [p.critical_failures, p.high_failures].filter(Boolean).join(', ');
-        return `
-          <div class="partial-card">
-            <div class="partial-card-id">${esc(p.id)}</div>
-            <div class="partial-card-name">${esc(p.name)}</div>
-            <div class="partial-card-meta">
-              <span>${esc(p.category)}</span>
-              ${p.score ? `<span>Score: ${esc(p.score)}</span>` : ''}
-            </div>
-            ${fails ? `<div class="partial-card-fail">&#9888; ${esc(fails)}</div>` : ''}
-            ${p.notes ? `<div class="partial-card-notes">${esc(p.notes)}</div>` : ''}
-          </div>`;
-      }).join('')}
+      <div class="issue-list">${items}</div>
     </div>`;
 }
 
-// ── Filter bindings ───────────────────────────────────────────────────────────
-function bindFilters() {
-  const cat    = $('#filter-cat');
-  const status = $('#filter-status');
-  const search = $('#filter-search');
-  const runSel = $('#run-select');
-
-  if (cat)    cat.addEventListener('change', renderTable);
-  if (status) status.addEventListener('change', renderTable);
-  if (search) search.addEventListener('input', renderTable);
-
-  if (runSel) {
-    runSel.addEventListener('change', e => {
-      const runs = filteredRuns();
-      currentRun = runs[parseInt(e.target.value, 10)];
-      updateHeaderLastRun();
-      renderBarChart();
-      renderPartials();
-      renderTable();
-    });
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const runs = filteredRuns();
+  if (!runs.length) {
+    document.getElementById('main').innerHTML = `<div class="empty"><h2>No data</h2><p>No runs match the current filters.</p></div>`;
+    return;
   }
+  if (!currentRun || !runs.includes(currentRun)) currentRun = runs[runs.length - 1];
+  updateHeader();
+  updateRunSelector();
+
+  const r       = currentRun;
+  const rIdx    = runs.indexOf(r);
+  const prevRun = rIdx > 0 ? runs[rIdx - 1] : null;
+
+  const total   = r.total   || 0;
+  const passed  = r.pass    || 0;
+  const partial = r.partial || 0;
+  const failed  = r.fail    || 0;
+  const errored = r.error   || 0;
+  const passRate = r.pass_rate ?? pct(passed + partial, total);
+  const isFeedback = (r.test_type || 'criteria') === 'feedback';
+
+  const cats      = Object.entries(r.categories || {});
+  const cleanCats = cats.filter(([,v]) => !(v.fail||0) && !(v.partial||0)).length;
+  const resolved  = isFeedback ? cats.filter(([,v]) => pct((v.pass||0)+(v.partial||0),v.total||0) >= 80).length : null;
+
+  // Warning banner for feedback runs
+  const warnBanner = isFeedback ? `
+    <div class="warn-banner">
+      &#9888;&#65039; This report covers <strong>issue-specific tests</strong> only — targeted tests raised against known feedback items. General scheduled test results are tracked separately.
+    </div>` : '';
+
+  // Summary
+  const summaryText = isFeedback
+    ? `Issue-specific test run &nbsp;·&nbsp; ${esc(r.label || fmtDate(r.date))} &nbsp;·&nbsp; ${cats.length} issues tracked &nbsp;·&nbsp; ${total} test variants run &nbsp;·&nbsp; Overall pass rate <strong>${passRate}%</strong>${resolved !== null ? ` &nbsp;·&nbsp; ${resolved} of ${cats.length} issues resolved` : ''}`
+    : `${esc(r.test_type || 'Criteria')} test run &nbsp;·&nbsp; ${esc(r.label || fmtDate(r.date))} &nbsp;·&nbsp; ${total} tests across ${cats.length} categories &nbsp;·&nbsp; Overall pass rate <strong>${passRate}%</strong>${cleanCats === cats.length ? ' &nbsp;·&nbsp; All categories clean' : ''}`;
+
+  // KPI labels vary by type
+  const kpi3Label = isFeedback ? 'Failures'          : 'Partials';
+  const kpi3Val   = isFeedback ? failed               : partial;
+  const kpi3Sub   = isFeedback ? `<span class="pill ${failed===0?'green':'red'}">${pct(failed,total)}% fail rate</span>` : `<span class="pill amber">to monitor</span>`;
+  const kpi4Label = isFeedback ? 'Issues Resolved'   : 'Clean Categories';
+  const kpi4Val   = isFeedback ? (resolved ?? cleanCats) : cleanCats;
+  const kpi4Sub   = isFeedback ? `<span class="pill green">of ${cats.length} tracked</span>` : `<span class="pill green">of ${cats.length}</span>`;
+
+  // Category bars (criteria/custom only)
+  const catBarsHTML = !isFeedback ? `
+    <div class="section-title">Breakdown</div>
+    <div class="two-col">
+      <div class="card">
+        <h3>Results by Category</h3>
+        <p class="card-sub">Pass rate per test category</p>
+        <div class="cat-bars">
+          ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name, v]) => {
+            const t = v.total || 0, p = (v.pass||0)+(v.partial||0), f = v.fail||0;
+            const cp = pct(p,t);
+            const fc = f>0?'fail':(v.partial||0)>0?'partial':'full';
+            return `<div class="cat-row">
+              <div class="cat-label"><span class="cat-name">${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;${p}/${t}</span></div>
+              <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>Results Split</h3>
+        <p class="card-sub">${total} total tests</p>
+        <div class="donut-wrap">
+          <svg id="donut-svg" width="115" height="115" viewBox="0 0 110 110"></svg>
+          <div class="donut-legend">
+            ${[[passed,'#22C55E','Pass'],[partial,'#F59E0B','Partial'],[failed,'#EF4444','Fail'],[errored,'#94A3B8','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
+              <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>` : `
+    <div class="section-title">Breakdown</div>
+    <div class="card" style="margin-bottom:18px">
+      <h3>Results Split</h3>
+      <p class="card-sub">${esc(r.label || fmtDate(r.date))} — ${total} tests</p>
+      <div class="donut-wrap">
+        <svg id="donut-svg" width="115" height="115" viewBox="0 0 110 110"></svg>
+        <div class="donut-legend">
+          ${[[passed,'#22C55E','Pass'],[partial,'#F59E0B','Partial'],[failed,'#EF4444','Fail'],[errored,'#94A3B8','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
+            <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  // Issue tracker (feedback only)
+  const issueTrackerHTML = isFeedback ? buildIssueTracker(r, prevRun) : '';
+
+  // Partials (criteria/custom)
+  const partials = r.partials || [];
+  const partialsHTML = !isFeedback && partials.length ? `
+    <div class="section-title">Partials to Monitor</div>
+    <div class="card" style="margin-bottom:18px">
+      <h3>Tests with Partial Results</h3>
+      <p class="card-sub">Passed overall but have a criterion to review</p>
+      <div class="partial-list">
+        ${partials.map(p=>`
+          <div class="partial-item">
+            <div class="partial-header"><span class="partial-name">${esc(p.name)}</span><span class="partial-score">${esc(p.score||p.category||'Partial')}</span></div>
+            <div class="partial-summary">${esc(p.summary||p.notes||'')}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const trendHTML = buildTrendHTML(runs);
+
+  document.getElementById('main').innerHTML = `
+    ${warnBanner}
+    <div class="section-title">Summary</div>
+    <div class="summary-card">${summaryText}</div>
+    <div class="section-title">Test Results</div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Pass Rate</div>
+        <div class="kpi-num">${passRate}<span class="unit">%</span></div>
+        <div class="kpi-sub"><span class="pill ${passRate===100?'green':passRate>=80?'amber':'red'}">${passed+partial} of ${total} passing</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Tests Run</div>
+        <div class="kpi-num">${total}</div>
+        <div class="kpi-sub"><span class="pill blue">${isFeedback?'issue-specific variants':cats.length+' categories'}</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">${kpi3Label}</div>
+        <div class="kpi-num">${kpi3Val}</div>
+        <div class="kpi-sub">${kpi3Sub}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">${kpi4Label}</div>
+        <div class="kpi-num">${kpi4Val}</div>
+        <div class="kpi-sub">${kpi4Sub}</div>
+      </div>
+    </div>
+    ${trendHTML}
+    ${catBarsHTML}
+    ${issueTrackerHTML}
+    ${partialsHTML}
+    <div class="disclaimer">
+      Results reflect automated ${esc(r.test_type||'criteria')} testing against the ${esc(r.environment||'production')} environment.
+      ${failed>0?`${failed} test${failed>1?'s':''} failed defined criteria thresholds.`:'All tests passed defined criteria thresholds.'}
+      ${partial>0?`${partial} partial result${partial>1?'s':''} indicate tests where one criterion was not fully met but overall behaviour was correct.`:''}
+    </div>`;
+
+  drawDonut(
+    [[passed,'#22C55E'],[partial,'#F59E0B'],[failed,'#EF4444'],[errored,'#94A3B8']].filter(([v])=>v>0),
+    total, passRate
+  );
 }
 
-function updateHeaderLastRun() {
-  const el = $('#header-lastrun');
-  if (el && currentRun) el.textContent = 'Last run: ' + formatDate(currentRun.date);
-}
-
-// ── Tab / pill bindings ───────────────────────────────────────────────────────
-function bindNavControls() {
-  $$('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeEnv = btn.dataset.env;
-      currentRun = null;
-      renderDashboard();
-    });
+// ── Donut ──────────────────────────────────────────────────────────────────
+function drawDonut(slices, total, passRate) {
+  const svg = document.getElementById('donut-svg');
+  if (!svg || !total) return;
+  const cx=55,cy=55,r=40,sw=14, circ=2*Math.PI*r;
+  let offset=0, arcs='';
+  slices.forEach(([v,c]) => {
+    const d=(v/total)*circ;
+    arcs+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-dasharray="${d} ${circ-d}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=d;
   });
-
-  $$('.pill-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.pill-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeType = btn.dataset.type;
-      currentRun = null;
-      renderDashboard();
-    });
-  });
+  svg.innerHTML = arcs +
+    `<text x="${cx}" y="${cy-4}" text-anchor="middle" fill="#0F1F2E" font-size="16" font-weight="700" font-family="Inter">${passRate}%</text>` +
+    `<text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#7A92A8" font-size="10" font-family="Inter">pass rate</text>`;
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// ── Trend with value labels ────────────────────────────────────────────────
+function buildTrendHTML(runs) {
+  const sorted = [...runs].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if (sorted.length < 2) return '';
+  const W=660,H=130, pad={t:30,b:28,l:30,r:16};
+  const iW=W-pad.l-pad.r, iH=H-pad.t-pad.b;
+  const vals = sorted.map(r => r.pass_rate ?? pct(r.pass||0, r.total||1));
+  const minV = Math.max(0,   Math.min(...vals)-8);
+  const maxV = Math.min(100, Math.max(...vals)+8);
+  const xStep  = iW/Math.max(vals.length-1,1);
+  const yScale = v => iH-((v-minV)/(maxV-minV||1))*iH;
+  const pts    = vals.map((v,i)=>[pad.l+i*xStep, pad.t+yScale(v)]);
+  const area   = `M ${pts[0].join(',')} ` + pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ') +
+    ` L ${pts[pts.length-1][0]},${pad.t+iH} L ${pad.l},${pad.t+iH} Z`;
+  const line   = `M ${pts[0].join(',')} ` + pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ');
+
+  // Y-axis labels
+  const yLabels = [0,50,100].map(v => {
+    const y = pad.t + yScale(Math.max(minV, Math.min(maxV, v)));
+    return `<text x="${pad.l-6}" y="${y+4}" text-anchor="end" font-size="8" fill="#7A92A8" font-family="Inter">${v}%</text>
+            <line x1="${pad.l}" y1="${y}" x2="${pad.l+iW}" y2="${y}" stroke="#EEF3F8" stroke-width="1"/>`;
+  }).join('');
+
+  // Dots + value labels + x labels
+  const annotations = pts.map(([x,y], i) => {
+    const v   = vals[i];
+    const sel = sorted[i] === currentRun;
+    const labelY = y - 10;
+    return `
+      <circle cx="${x}" cy="${y}" r="${sel?5:3.5}" fill="${sel?'#1A72BC':'#22C55E'}" stroke="#fff" stroke-width="1.5"/>
+      <text x="${x}" y="${labelY}" text-anchor="middle" font-size="9" font-weight="600" fill="${sel?'#1A72BC':'#22C55E'}" font-family="Inter">${v}%</text>
+      <text x="${x}" y="${H-4}" text-anchor="middle" font-size="9" fill="#7A92A8" font-family="Inter">${esc((sorted[i].label||sorted[i].date||'').slice(0,6))}</text>`;
+  }).join('');
+
+  return `
+    <div class="trend-card">
+      <h3>Pass Rate Over Time</h3>
+      <p class="card-sub">Across all test runs to date</p>
+      <div class="trend-wrap">
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;display:block">
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1A72BC" stop-opacity=".1"/>
+              <stop offset="100%" stop-color="#1A72BC" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${yLabels}
+          <path d="${area}" fill="url(#tg)"/>
+          <path d="${line}" fill="none" stroke="#1A72BC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${annotations}
+        </svg>
+      </div>
+    </div>`;
+}
+
+// ── CSV Export ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!currentRun) return;
+  const tests = currentRun.tests || [];
+  if (!tests.length) { alert('No test data to export for this run.'); return; }
+  const headers = ['test_id','name','category','status','score','summary'];
+  const rows = tests.map(t => headers.map(h => `"${String(t[h]||'').replace(/"/g,'""')}"`).join(','));
+  const csv  = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `tex-qa-${currentRun.date||'run'}-${currentRun.test_type||'results'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF() { window.print(); }
+
+// ── Nav bindings ───────────────────────────────────────────────────────────
+function bindNav() {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeEnv = btn.dataset.env;
+    currentRun = null; render();
+  }));
+  document.querySelectorAll('.pill-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.pill-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeType = btn.dataset.type;
+    currentRun = null; render();
+  }));
+  document.getElementById('run-select').addEventListener('change', e => {
+    currentRun = filteredRuns()[parseInt(e.target.value,10)]; render();
+  });
+  document.getElementById('date-from').addEventListener('change', e => { dateFrom=e.target.value; currentRun=null; render(); });
+  document.getElementById('date-to').addEventListener('change',   e => { dateTo  =e.target.value; currentRun=null; render(); });
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
 async function init() {
-  bindNavControls();
+  bindNav();
   try {
     const resp = await fetch('reports/qa_results.json');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-
-    allRuns = (data.runs || []).slice();
-    allRuns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-    if (allRuns.length === 0) {
-      renderEmpty('The JSON loaded but contains no runs. Run the test suite to populate it.');
+    allRuns = (data.runs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if (allRuns.length) {
+      const dates = allRuns.map(r=>r.date).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('date-from').value = dates[0];
+        document.getElementById('date-to').value   = dates[dates.length-1];
+        dateFrom = dates[0]; dateTo = dates[dates.length-1];
+      }
+    }
+    if (!allRuns.length) {
+      document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
       return;
     }
-
-    renderDashboard();
-  } catch (err) {
-    console.error('QA Dashboard load error:', err);
-    renderEmpty('No data yet — run the test suite to generate results.');
+    render();
+  } catch(e) {
+    document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
   }
 }
 

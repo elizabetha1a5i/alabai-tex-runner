@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cyphr Flow — Weber Ranch</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #F4F8FC; color: #0F1F2E; display: flex; flex-direction: column; min-height: 100vh; }
+  header { background: #1A72BC; padding: 0 48px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { color: #fff; font-size: 18px; font-weight: 700; }
+  header span { color: rgba(255,255,255,.6); font-size: 12px; }
+  main { flex: 1; max-width: 800px; margin: 60px auto; padding: 0 24px; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .sub { font-size: 14px; color: #7A92A8; margin-bottom: 36px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid #D5E3EE; border-radius: 12px; padding: 22px; text-decoration: none; color: inherit; transition: box-shadow .15s, border-color .15s; }
+  .card:hover { box-shadow: 0 4px 16px rgba(26,114,188,.12); border-color: #1A72BC; }
+  .card-icon { font-size: 24px; margin-bottom: 10px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .card p { font-size: 12px; color: #7A92A8; line-height: 1.5; }
+  footer { text-align: center; padding: 20px; font-size: 11px; color: #7A92A8; border-top: 1px solid #D5E3EE; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cyphr Flow</h1>
+  <span>Weber Ranch AI · Internal Tools</span>
+</header>
+<main>
+  <h2>Internal Dashboard</h2>
+  <p class="sub">QA monitoring and reporting for Tex, the Weber Ranch AI Mixologist.</p>
+  <div class="cards">
+    <a href="qa-dashboard.html" class="card">
+      <div class="card-icon">📊</div>
+      <h3>Tex QA Dashboard</h3>
+      <p>Live test results across production and staging environments. Pass rates, category breakdowns, and partials tracking.</p>
+    </a>
+  </div>
+</main>
+<footer>Cyphr Flow &nbsp;·&nbsp; Weber Ranch &nbsp;·&nbsp; Powered by Alibi AI</footer>
+</body>
+</html>
