@@ -73,8 +73,10 @@ jobs:
       - name: Publish dashboard to cyphr-flow
         run: |
           cd cyphr-flow
+          mkdir -p reports
           git config user.name  "Alibi AI"
           git config user.email "ci@alibi.ai"
-          git add reports/qa_results.json qa-dashboard.html
+          git add qa-dashboard.html
+          [ -f reports/qa_results.json ] && git add reports/qa_results.json || echo "No snapshot to add"
           git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — prod test run"
           git push
