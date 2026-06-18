@@ -529,7 +529,11 @@ function drawDonut(slices, total, passRate) {
 }
 
 function buildTrendHTML(runs) {
-  const sorted = [...runs].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const sorted = [...runs].sort((a,b)=>{
+    const ka = a.timestamp || a.date || '';
+    const kb = b.timestamp || b.date || '';
+    return ka.localeCompare(kb);
+  });
   if (sorted.length < 2) return '';
   const W=820, H=160, pad={t:40,b:32,l:36,r:20};
   const iW=W-pad.l-pad.r, iH=H-pad.t-pad.b;
@@ -555,7 +559,7 @@ function buildTrendHTML(runs) {
     const c   = sel ? '#137333' : '#258ed8';
     return `<circle cx="${x}" cy="${y}" r="${sel?6:4}" fill="${c}" stroke="#fff" stroke-width="2.5"/>
             <text x="${x}" y="${y-13}" text-anchor="middle" font-size="10" font-weight="700" fill="${c}" font-family="Montserrat">${v}%</text>
-            <text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#9ea3b8" font-family="Montserrat" font-weight="600">${esc((sorted[i].label||sorted[i].date||'').slice(0,8))}</text>`;
+            <text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#9ea3b8" font-family="Montserrat" font-weight="600">${esc(sorted[i].timestamp ? sorted[i].timestamp.slice(5,16).replace('T',' ') : (sorted[i].date||'').slice(0,8))}</text>`;
   }).join('');
 
   return `
@@ -628,7 +632,11 @@ async function init() {
     const resp = await fetch('reports/qa_results.json');
     if (!resp.ok) throw new Error();
     const data = await resp.json();
-    allRuns = (data.runs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    allRuns = (data.runs||[]).slice().sort((a,b)=>{
+      const ka = a.timestamp || a.date || '';
+      const kb = b.timestamp || b.date || '';
+      return ka.localeCompare(kb);
+    });
     if (allRuns.length) {
       const dates = allRuns.map(r=>r.date).filter(Boolean).sort();
       if (dates.length) {
