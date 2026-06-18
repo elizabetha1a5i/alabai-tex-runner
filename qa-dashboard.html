@@ -8,183 +8,177 @@
 <style>
   :root {
     --blue:        #258ed8;
-    --blue-light:  #d9e5ff;
+    --blue-light:  #e8f4fd;
     --blue-dark:   #080331;
     --pink:        #dd23bb;
-    --pink-light:  #ffaefe;
-    --pink-dark:   #3c043b;
-    --bg:          #f3f3f3;
+    --pink-light:  #fce8f9;
+    --bg:          #f5f6fa;
     --surface:     #ffffff;
-    --text:        #414141;
-    --text-mid:    #666666;
-    --text-light:  #aba9a9;
-    --border:      #e0e0e0;
-    --black:       #000000;
-    --neutral-dark:#222222;
-    --green:       #114e0b;
-    --green-bg:    #cef5ca;
-    --amber:       #5e5515;
-    --amber-bg:    #fcf8d8;
-    --red:         #3b0b0b;
-    --red-bg:      #f8e4e4;
+    --text:        #1a1a2e;
+    --text-mid:    #5a5f7d;
+    --text-light:  #9ea3bd;
+    --border:      #eaecf4;
+    --green:       #137333;
+    --green-bg:    #e6f4ea;
+    --amber:       #7a5a00;
+    --amber-bg:    #fef9e7;
+    --red:         #c0392b;
+    --red-bg:      #fdecea;
+    --shadow-sm:   0 1px 4px rgba(8,3,49,.06), 0 4px 16px rgba(8,3,49,.04);
+    --radius:      14px;
+    --radius-sm:   8px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Montserrat',sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  body { font-family:'Montserrat',sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased; }
 
   /* ── Header ── */
-  .header { background:var(--blue-dark); padding:0 48px; display:flex; align-items:center; justify-content:space-between; height:68px; }
-  .header-left { display:flex; align-items:center; gap:16px; }
-  .header-logo { font-size:18px; font-weight:800; color:#fff; letter-spacing:-.3px; text-transform:uppercase; }
-  .header-logo span { color:var(--blue); font-weight:300; font-size:13px; margin-left:6px; text-transform:none; vertical-align:middle; }
+  .header { background:var(--blue-dark); padding:0 40px; display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .header-brand { font-size:17px; font-weight:800; color:#fff; letter-spacing:-.2px; display:flex; align-items:center; gap:14px; }
+  .header-brand span.sub { font-size:11px; font-weight:500; color:rgba(255,255,255,.45); letter-spacing:.3px; }
   .header-tags { display:flex; gap:6px; }
-  .badge { font-size:9px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; padding:3px 10px; border-radius:2px; }
-  .badge.prod      { background:var(--green-bg);  color:var(--green); }
-  .badge.staging   { background:var(--blue-light); color:var(--blue-dark); }
-  .badge.criteria  { background:#ede9fe; color:#4c1d95; }
-  .badge.custom    { background:var(--amber-bg);  color:var(--amber); }
-  .badge.feedback  { background:var(--pink-light); color:var(--pink-dark); }
-  .header-right { font-size:12px; color:rgba(255,255,255,.5); text-align:right; font-weight:500; }
-  .header-right strong { color:#fff; }
+  .badge { font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:3px 10px; border-radius:20px; }
+  .badge.staging    { background:rgba(37,142,216,.2);  color:#7ec8f5; }
+  .badge.production { background:rgba(19,115,51,.2);   color:#5dd88a; }
+  .badge.criteria   { background:rgba(139,92,246,.2);  color:#c4b5fd; }
+  .badge.custom     { background:rgba(245,158,11,.2);  color:#fcd34d; }
+  .badge.feedback   { background:rgba(221,35,187,.2);  color:#f9a8ef; }
+  .header-date { font-size:12px; color:rgba(255,255,255,.5); font-weight:500; }
+  .header-date strong { color:#fff; }
 
   /* ── Toolbar ── */
-  .toolbar { background:var(--blue-dark); border-top:1px solid rgba(255,255,255,.07); padding:8px 48px; display:flex; gap:8px; align-items:center; }
-  .toolbar-btn { border:1px solid rgba(255,255,255,.2); background:transparent; border-radius:3px; padding:6px 14px; font-size:11px; font-weight:600; cursor:pointer; font-family:'Montserrat',sans-serif; color:rgba(255,255,255,.7); letter-spacing:.5px; text-transform:uppercase; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
-  .toolbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .toolbar { background:var(--blue-dark); border-top:1px solid rgba(255,255,255,.06); padding:8px 40px; display:flex; gap:8px; align-items:center; }
+  .toolbar-btn { border:1px solid rgba(255,255,255,.18); background:transparent; border-radius:8px; padding:6px 16px; font-size:11px; font-weight:600; cursor:pointer; font-family:'Montserrat',sans-serif; color:rgba(255,255,255,.65); letter-spacing:.3px; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .toolbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.35); }
   .toolbar-btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
   .toolbar-btn.primary:hover { background:#1a7bbf; }
   .toolbar-btn.accent { background:var(--pink); color:#fff; border-color:var(--pink); }
-  .toolbar-btn.accent:hover { background:#c01fa3; }
+  .toolbar-btn.accent:hover { background:#be1ea0; }
 
   /* ── Nav bar ── */
-  .nav-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 48px; display:flex; align-items:center; }
-  .tab-btn { padding:12px 20px; font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--text-light); border:none; border-bottom:3px solid transparent; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; white-space:nowrap; }
+  .nav-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:center; gap:4px; }
+  .tab-btn { padding:14px 18px; font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--text-light); border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; }
   .tab-btn:hover { color:var(--text-mid); }
   .tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
-  .nav-div { width:1px; height:20px; background:var(--border); margin:0 8px; }
-  .type-label { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-light); padding:0 8px 0 4px; white-space:nowrap; }
-  .pill-btn { padding:4px 12px; border-radius:2px; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; border:1px solid var(--border); background:var(--bg); color:var(--text-mid); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin:8px 2px; }
+  .nav-sep { width:1px; height:18px; background:var(--border); margin:0 6px; }
+  .type-lbl { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-light); margin:0 4px 0 8px; }
+  .pill-btn { padding:5px 14px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; border:1.5px solid var(--border); background:transparent; color:var(--text-mid); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin:8px 2px; }
   .pill-btn:hover { border-color:var(--blue); color:var(--blue); }
   .pill-btn.active { background:var(--blue-dark); border-color:var(--blue-dark); color:#fff; }
 
   /* ── Filter bar ── */
-  .filter-bar { background:var(--bg); border-bottom:1px solid var(--border); padding:9px 48px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .filter-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 40px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
   .filter-group { display:flex; align-items:center; gap:8px; }
-  .filter-bar label { font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--text-light); white-space:nowrap; }
-  .filter-bar select, .filter-bar input[type="date"] { border:1px solid var(--border); border-radius:3px; padding:5px 10px; font-size:12px; font-family:'Montserrat',sans-serif; background:var(--surface); color:var(--text); outline:none; cursor:pointer; font-weight:500; }
-  .filter-bar select:focus, .filter-bar input[type="date"]:focus { border-color:var(--blue); }
-  .filter-sep { color:var(--border); }
+  .filter-bar label { font-size:10px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--text-light); }
+  .filter-bar select, .filter-bar input[type="date"] { border:1.5px solid var(--border); border-radius:8px; padding:5px 12px; font-size:12px; font-family:'Montserrat',sans-serif; background:var(--bg); color:var(--text); outline:none; font-weight:500; }
+  .filter-bar select:focus, .filter-bar input[type="date"]:focus { border-color:var(--blue); background:var(--surface); }
 
-  /* ── Main ── */
-  .main { max-width:1080px; margin:0 auto; padding:32px 48px; }
-  .section-title { font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--text-light); margin-bottom:12px; }
+  /* ── Layout ── */
+  .main { max-width:900px; margin:0 auto; padding:32px 24px; }
+  .section-label { font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-light); margin-bottom:10px; padding-left:2px; }
 
   /* ── Warning banner ── */
-  .warn-banner { background:var(--amber-bg); border-left:3px solid #f0c040; border-radius:3px; padding:12px 16px; margin-bottom:20px; font-size:12px; color:var(--amber); line-height:1.55; font-weight:500; }
+  .warn-banner { background:#fffbeb; border:1px solid #fde68a; border-radius:var(--radius-sm); padding:14px 18px; margin-bottom:24px; font-size:12px; color:#92400e; line-height:1.6; font-weight:500; display:flex; gap:10px; align-items:flex-start; }
   .warn-banner strong { font-weight:700; }
 
-  /* ── Summary ── */
-  .summary-card { background:var(--blue-dark); border-radius:4px; padding:16px 20px; margin-bottom:20px; font-size:12px; color:rgba(255,255,255,.7); line-height:1.7; font-weight:400; }
-  .summary-card strong { color:#fff; font-weight:700; }
+  /* ── Summary card ── */
+  .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin-bottom:28px; font-size:13px; color:var(--text-mid); line-height:1.7; box-shadow:var(--shadow-sm); }
+  .summary-card strong { color:var(--text); font-weight:700; }
 
-  /* ── KPIs ── */
-  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; margin-bottom:20px; background:var(--border); border-radius:4px; overflow:hidden; }
-  .kpi { background:var(--surface); padding:22px 20px; }
-  .kpi-label { font-size:9px; color:var(--text-light); font-weight:700; margin-bottom:10px; text-transform:uppercase; letter-spacing:1.5px; }
-  .kpi-num { font-size:40px; font-weight:800; color:var(--blue-dark); line-height:1; margin-bottom:8px; }
-  .kpi-num .unit { font-size:20px; font-weight:400; color:var(--text-light); }
-  .kpi-sub { font-size:11px; }
-  .pill { display:inline-flex; font-size:10px; font-weight:700; padding:3px 9px; border-radius:2px; letter-spacing:.3px; }
-  .pill.green  { background:var(--green-bg);  color:var(--green); }
-  .pill.amber  { background:var(--amber-bg);  color:var(--amber); }
-  .pill.blue   { background:var(--blue-light); color:var(--blue-dark); }
-  .pill.red    { background:var(--red-bg);     color:var(--red); }
-  .pill.pink   { background:var(--pink-light); color:var(--pink-dark); }
+  /* ── KPI grid ── */
+  .kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:28px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px 28px; box-shadow:var(--shadow-sm); }
+  .kpi-label { font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-light); margin-bottom:12px; }
+  .kpi-num { font-size:44px; font-weight:800; color:var(--text); line-height:1; margin-bottom:12px; letter-spacing:-1px; }
+  .kpi-num .unit { font-size:24px; font-weight:400; color:var(--text-light); letter-spacing:0; }
+  .chip { display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:4px 12px; border-radius:20px; }
+  .chip.green  { background:var(--green-bg); color:var(--green); }
+  .chip.amber  { background:var(--amber-bg); color:var(--amber); }
+  .chip.blue   { background:var(--blue-light); color:var(--blue); }
+  .chip.red    { background:var(--red-bg); color:var(--red); }
+  .chip.pink   { background:var(--pink-light); color:var(--pink); }
 
   /* ── Cards ── */
-  .two-col { display:grid; grid-template-columns:1.3fr 1fr; gap:2px; margin-bottom:2px; background:var(--border); }
-  .card { background:var(--surface); padding:22px; }
-  .card-standalone { background:var(--surface); border-radius:4px; padding:22px; margin-bottom:20px; }
-  .card h3 { font-size:13px; font-weight:700; color:var(--blue-dark); margin-bottom:2px; text-transform:uppercase; letter-spacing:.5px; }
-  .card-sub { font-size:11px; color:var(--text-light); margin-bottom:16px; font-weight:500; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow-sm); }
+  .card h3 { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .card-sub { font-size:12px; color:var(--text-light); margin-bottom:20px; font-weight:500; }
+  .two-col { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-bottom:28px; }
 
   /* ── Category bars ── */
-  .cat-bars { display:flex; flex-direction:column; gap:12px; }
-  .cat-row { display:flex; flex-direction:column; gap:5px; }
+  .cat-bars { display:flex; flex-direction:column; gap:14px; }
+  .cat-row { display:flex; flex-direction:column; gap:6px; }
   .cat-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-mid); font-weight:600; }
-  .cat-pct   { font-weight:700; color:var(--text); }
-  .bar-track { background:var(--bg); border-radius:0; height:6px; }
-  .bar-fill  { height:6px; border-radius:0; transition:width .4s ease; }
+  .cat-pct { font-weight:700; color:var(--text); }
+  .bar-track { background:var(--bg); border-radius:99px; height:7px; overflow:hidden; }
+  .bar-fill { height:7px; border-radius:99px; transition:width .5s ease; }
   .bar-fill.full    { background:var(--blue); }
   .bar-fill.partial { background:#f0c040; }
   .bar-fill.fail    { background:var(--pink); }
 
   /* ── Donut ── */
-  .donut-wrap { display:flex; align-items:center; gap:24px; }
-  .donut-legend { display:flex; flex-direction:column; gap:10px; flex:1; }
+  .donut-wrap { display:flex; align-items:center; gap:28px; }
+  .donut-legend { display:flex; flex-direction:column; gap:12px; flex:1; }
   .legend-item { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-mid); font-weight:500; }
-  .legend-dot { width:8px; height:8px; border-radius:0; flex-shrink:0; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .legend-val { font-weight:700; color:var(--text); margin-left:auto; }
 
   /* ── Trend ── */
-  .trend-card { background:var(--surface); padding:22px; margin-bottom:2px; }
-  .trend-wrap { margin-top:18px; overflow-x:auto; }
+  .trend-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:28px; box-shadow:var(--shadow-sm); }
+  .trend-wrap { margin-top:16px; overflow-x:auto; }
 
-  /* ── Issue Tracker ── */
-  .issue-header { background:var(--blue-dark); padding:16px 22px; border-radius:4px 4px 0 0; }
-  .issue-header h3 { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#fff; margin-bottom:2px; }
-  .issue-header p  { font-size:11px; color:rgba(255,255,255,.5); font-weight:500; }
-  .issue-list { display:flex; flex-direction:column; margin-bottom:20px; }
-  .issue-item { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 22px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .issue-item:last-child { border-radius:0 0 4px 4px; border-bottom:none; }
-  .issue-name  { font-size:12px; font-weight:600; color:var(--text); flex:1; min-width:180px; }
-  .issue-count { font-size:11px; color:var(--text-light); white-space:nowrap; font-weight:500; }
-  .issue-score { font-size:13px; font-weight:800; color:var(--blue-dark); white-space:nowrap; min-width:100px; text-align:right; }
-  .issue-delta { font-size:10px; font-weight:700; padding:2px 8px; border-radius:2px; letter-spacing:.3px; white-space:nowrap; }
-  .issue-delta.up   { background:var(--green-bg); color:var(--green); }
-  .issue-delta.down { background:var(--red-bg);   color:var(--red); }
-  .issue-delta.same { background:var(--bg);        color:var(--text-light); }
-  .issue-resolved { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--green); background:var(--green-bg); padding:3px 9px; border-radius:2px; white-space:nowrap; }
-  .issue-open     { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--amber); background:var(--amber-bg); padding:3px 9px; border-radius:2px; white-space:nowrap; }
-  .issue-date     { font-size:10px; color:var(--text-light); font-weight:500; white-space:nowrap; margin-left:auto; }
+  /* ── Issue tracker ── */
+  .issue-list { display:flex; flex-direction:column; margin-bottom:28px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); }
+  .issue-header-card { background:var(--surface); border:1px solid var(--border); padding:18px 24px 16px; border-bottom:none; }
+  .issue-header-card h3 { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .issue-header-card p  { font-size:12px; color:var(--text-light); font-weight:500; }
+  .issue-item { background:var(--surface); border:1px solid var(--border); border-top:none; padding:16px 24px; display:flex; flex-direction:column; gap:7px; }
+  .issue-item-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .issue-name  { font-size:12px; font-weight:600; color:var(--text-mid); }
+  .issue-count { font-size:11px; color:var(--text-light); font-weight:500; }
+  .issue-score { font-size:15px; font-weight:800; color:var(--text); white-space:nowrap; }
+  .issue-pct   { font-size:13px; font-weight:600; color:var(--text-mid); }
+  .issue-delta { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+  .issue-delta.up   { background:var(--blue-light); color:var(--blue); }
+  .issue-delta.down { background:var(--red-bg);     color:var(--red); }
+  .issue-delta.same { background:var(--bg);         color:var(--text-light); border:1px solid var(--border); }
+  .resolved-chip { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--green); background:var(--green-bg); padding:3px 10px; border-radius:20px; white-space:nowrap; }
+  .open-chip    { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--amber); background:var(--amber-bg); padding:3px 10px; border-radius:20px; white-space:nowrap; }
+  .issue-date   { font-size:10px; color:var(--text-light); margin-left:auto; white-space:nowrap; }
 
   /* ── Partials ── */
-  .partial-list { display:flex; flex-direction:column; gap:2px; }
-  .partial-item { background:var(--amber-bg); border-left:3px solid #f0c040; padding:14px 16px; }
+  .partial-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
+  .partial-item { background:var(--amber-bg); border:1px solid #fde68a; border-radius:var(--radius-sm); padding:16px 18px; }
   .partial-header { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
-  .partial-name    { font-size:12px; font-weight:700; color:var(--blue-dark); }
-  .partial-score   { font-size:10px; font-weight:700; color:var(--amber); background:#fff; padding:2px 8px; border-radius:2px; white-space:nowrap; }
-  .partial-summary { font-size:11px; color:var(--text-mid); line-height:1.55; font-weight:500; }
+  .partial-name    { font-size:13px; font-weight:700; color:var(--text); }
+  .partial-badge   { font-size:10px; font-weight:700; color:var(--amber); background:#fff; padding:3px 10px; border-radius:20px; white-space:nowrap; border:1px solid #fde68a; }
+  .partial-summary { font-size:12px; color:var(--text-mid); line-height:1.6; font-weight:500; }
 
-  .section-block { background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:20px; display:flex; flex-direction:column; gap:2px; }
-
-  .disclaimer { font-size:11px; color:var(--text-light); padding:14px 18px; background:var(--surface); border-radius:4px; line-height:1.6; margin-bottom:20px; font-weight:500; }
-  .footer { text-align:center; padding:20px; font-size:11px; color:var(--text-light); border-top:1px solid var(--border); font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+  .disclaimer { font-size:11px; color:var(--text-light); padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); line-height:1.7; margin-bottom:24px; font-weight:500; box-shadow:var(--shadow-sm); }
+  .footer { text-align:center; padding:20px; font-size:11px; color:var(--text-light); border-top:1px solid var(--border); font-weight:600; letter-spacing:.5px; }
   .empty { text-align:center; padding:80px 20px; }
-  .empty h2 { font-size:18px; font-weight:800; color:var(--blue-dark); margin-bottom:8px; text-transform:uppercase; }
-  .empty p  { font-size:12px; color:var(--text-light); font-weight:500; }
+  .empty h2 { font-size:20px; font-weight:800; color:var(--text); margin-bottom:8px; }
+  .empty p  { font-size:13px; color:var(--text-light); font-weight:500; }
 
   @media print {
     body { background:white; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .toolbar,.nav-bar,.filter-bar { display:none !important; }
     .kpi,.partial-item,.issue-item { break-inside:avoid; }
   }
-  @media (max-width:800px) {
-    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  @media (max-width:700px) {
+    .kpi-grid { grid-template-columns:1fr; }
     .two-col  { grid-template-columns:1fr; }
-    .main,.header,.toolbar,.nav-bar,.filter-bar { padding-left:16px; padding-right:16px; }
+    .main { padding:20px 16px; }
+    .header,.toolbar,.nav-bar,.filter-bar { padding-left:16px; padding-right:16px; }
   }
 </style>
 </head>
 <body>
 
 <header class="header">
-  <div class="header-left">
-    <span class="header-logo">Tex QA <span>Weber Ranch</span></span>
+  <div class="header-brand">
+    Tex QA <span class="sub">Weber Ranch</span>
     <div class="header-tags" id="header-tags"></div>
   </div>
-  <div class="header-right">
-    <strong id="header-date">—</strong>
-  </div>
+  <div class="header-date" id="header-date"></div>
 </header>
 
 <div class="toolbar">
@@ -197,8 +191,8 @@
   <button class="tab-btn active" data-env="all">All</button>
   <button class="tab-btn" data-env="production">Production</button>
   <button class="tab-btn" data-env="staging">Staging</button>
-  <div class="nav-div"></div>
-  <span class="type-label">Type</span>
+  <div class="nav-sep"></div>
+  <span class="type-lbl">Type</span>
   <button class="pill-btn active" data-type="all">All</button>
   <button class="pill-btn" data-type="criteria">Criteria</button>
   <button class="pill-btn" data-type="custom">Custom</button>
@@ -213,7 +207,7 @@
   <div class="filter-group">
     <label for="date-from">From</label>
     <input type="date" id="date-from" />
-    <span class="filter-sep">–</span>
+    <label style="color:var(--text-light)">–</label>
     <input type="date" id="date-to" />
   </div>
 </div>
@@ -240,7 +234,7 @@ function filteredRuns() {
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric'});
 }
 function pct(n,t) { return t ? Math.round((n/t)*100) : 0; }
 
@@ -251,61 +245,63 @@ function updateHeader() {
   document.getElementById('header-tags').innerHTML =
     `<span class="badge ${env}">${esc(env)}</span>` +
     `<span class="badge ${type}">${esc(type)}</span>`;
-  document.getElementById('header-date').textContent =
-    currentRun.label || fmtDate(currentRun.date);
+  const label = currentRun.label || fmtDate(currentRun.date);
+  document.getElementById('header-date').innerHTML = `<strong>${esc(label)}</strong>`;
   document.getElementById('footer').textContent =
-    `Tex QA · ${esc(type)} · ${esc(currentRun.label || fmtDate(currentRun.date))}`;
+    `Tex QA Dashboard · ${esc(type)} · ${esc(label)}`;
 }
 
 function updateRunSelector() {
   const runs = filteredRuns();
   const sel  = document.getElementById('run-select');
   sel.innerHTML = runs.length
-    ? runs.map((r,i) => {
-        const tags = [
-          activeEnv  === 'all' ? (r.environment||'prod') : null,
-          activeType === 'all' ? (r.test_type||'criteria') : null,
+    ? runs.map((r,i)=>{
+        const tags=[
+          activeEnv  ==='all'?(r.environment||'prod'):null,
+          activeType ==='all'?(r.test_type||'criteria'):null,
         ].filter(Boolean).join(' · ');
-        const lbl = (r.label||r.date||`Run ${i+1}`) + (tags ? `  [${tags}]` : '');
+        const lbl=(r.label||r.date||`Run ${i+1}`)+(tags?`  [${tags}]`:'');
         return `<option value="${i}" ${r===currentRun?'selected':''}>${esc(lbl)}</option>`;
       }).join('')
     : '<option>No runs match filters</option>';
 }
 
 function buildIssueTracker(r, prevRun) {
-  const cats = Object.entries(r.categories || {});
+  const cats=Object.entries(r.categories||{});
   if (!cats.length) return '';
-  const prevCats  = prevRun ? (prevRun.categories||{}) : {};
-  const resolved  = cats.filter(([,v]) => pct((v.pass||0)+(v.partial||0),v.total||0) >= 80).length;
+  const prevCats=prevRun?(prevRun.categories||{}):{};
+  const resolved=cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length;
 
-  const rows = cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
-    const total   = v.total||0, passing=(v.pass||0)+(v.partial||0);
-    const rate    = pct(passing,total);
-    const isRes   = rate >= 80;
-    let deltaHTML = '';
+  const rows=cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
+    const total=v.total||0,passing=(v.pass||0)+(v.partial||0);
+    const rate=pct(passing,total);
+    const isRes=rate>=80;
+    let deltaHTML='';
     if (prevCats[name]) {
-      const pv = prevCats[name];
-      const prevRate = pct((pv.pass||0)+(pv.partial||0), pv.total||0);
-      const diff = rate - prevRate;
-      if (diff>0)      deltaHTML = `<span class="issue-delta up">↑ from ${prevRate}%</span>`;
-      else if (diff<0) deltaHTML = `<span class="issue-delta down">↓ from ${prevRate}%</span>`;
-      else             deltaHTML = `<span class="issue-delta same">→ maintained</span>`;
+      const pv=prevCats[name];
+      const prevRate=pct((pv.pass||0)+(pv.partial||0),pv.total||0);
+      const diff=rate-prevRate;
+      if (diff>0)      deltaHTML=`<span class="issue-delta up">↑ from ${prevRate}%</span>`;
+      else if (diff<0) deltaHTML=`<span class="issue-delta down">↓ from ${prevRate}%</span>`;
+      else             deltaHTML=`<span class="issue-delta same">→ maintained</span>`;
     }
     return `
       <div class="issue-item">
-        <span class="issue-name">${esc(name)}</span>
-        <span class="issue-count">${total} variant${total!==1?'s':''}</span>
-        <span class="issue-score">${passing}/${total} (${rate}%)</span>
-        ${deltaHTML}
-        ${isRes ? `<span class="issue-resolved">Resolved</span>` : `<span class="issue-open">Open</span>`}
-        <span class="issue-date">${esc(r.date||'')}</span>
+        <div><span class="issue-name">${esc(name)}</span> <span class="issue-count">· ${total} variant${total!==1?'s':''} tested</span></div>
+        <div class="issue-item-row">
+          <span class="issue-score">${passing}/${total}</span>
+          <span class="issue-pct">(${rate}%)</span>
+          ${deltaHTML}
+          ${isRes?`<span class="resolved-chip">Resolved</span>`:`<span class="open-chip">Open</span>`}
+          <span class="issue-date">${esc(r.date||'')}</span>
+        </div>
       </div>`;
   }).join('');
 
   return `
-    <div class="section-title">Issue Tracker</div>
+    <div class="section-label">Issue Tracker</div>
     <div class="issue-list">
-      <div class="issue-header">
+      <div class="issue-header-card">
         <h3>Feedback Issues — Results</h3>
         <p>Resolved = 80%+ pass rate &nbsp;·&nbsp; ${resolved} of ${cats.length} resolved</p>
       </div>
@@ -314,228 +310,210 @@ function buildIssueTracker(r, prevRun) {
 }
 
 function render() {
-  const runs = filteredRuns();
+  const runs=filteredRuns();
   if (!runs.length) {
-    document.getElementById('main').innerHTML = `<div class="empty"><h2>No data</h2><p>No runs match the current filters.</p></div>`;
+    document.getElementById('main').innerHTML=`<div class="empty"><h2>No data</h2><p>No runs match the current filters.</p></div>`;
     return;
   }
-  if (!currentRun || !runs.includes(currentRun)) currentRun = runs[runs.length-1];
-  updateHeader();
-  updateRunSelector();
+  if (!currentRun||!runs.includes(currentRun)) currentRun=runs[runs.length-1];
+  updateHeader(); updateRunSelector();
 
   const r        = currentRun;
   const rIdx     = runs.indexOf(r);
-  const prevRun  = rIdx > 0 ? runs[rIdx-1] : null;
-  const total    = r.total  || 0;
-  const passed   = r.pass   || 0;
-  const partial  = r.partial|| 0;
-  const failed   = r.fail   || 0;
-  const errored  = r.error  || 0;
-  const passRate = r.pass_rate ?? pct(passed+partial, total);
-  const isFB     = (r.test_type||'criteria') === 'feedback';
+  const prevRun  = rIdx>0?runs[rIdx-1]:null;
+  const total    = r.total  ||0;
+  const passed   = r.pass   ||0;
+  const partial  = r.partial||0;
+  const failed   = r.fail   ||0;
+  const errored  = r.error  ||0;
+  const passRate = r.pass_rate??pct(passed+partial,total);
+  const isFB     = (r.test_type||'criteria')==='feedback';
   const cats     = Object.entries(r.categories||{});
   const cleanCats= cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
-  const resolved = isFB ? cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length : null;
+  const resolved = isFB?cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length:null;
 
-  const warnBanner = isFB ? `
+  const warnBanner = isFB?`
     <div class="warn-banner">
-      ⚠ This report covers <strong>issue-specific tests</strong> only — targeted tests raised against known feedback items. General scheduled test results are tracked separately.
-    </div>` : '';
+      <span>⚠️</span>
+      <span>This report covers <strong>issue-specific tests</strong> only — targeted tests raised against known feedback items. General scheduled test results are tracked separately.</span>
+    </div>`:'';
 
   const summaryText = isFB
-    ? `Issue-specific test run &nbsp;·&nbsp; ${esc(r.label||fmtDate(r.date))} &nbsp;·&nbsp; ${cats.length} issues tracked &nbsp;·&nbsp; ${total} test variants &nbsp;·&nbsp; Pass rate <strong>${passRate}%</strong>${resolved!==null?` &nbsp;·&nbsp; ${resolved} of ${cats.length} resolved`:''}`
-    : `${esc(r.test_type||'Criteria')} test run &nbsp;·&nbsp; ${esc(r.label||fmtDate(r.date))} &nbsp;·&nbsp; ${total} tests across ${cats.length} categories &nbsp;·&nbsp; Pass rate <strong>${passRate}%</strong>${cleanCats===cats.length?' &nbsp;·&nbsp; All categories clean':''}`;
+    ? `Issue-specific test run · ${esc(r.label||fmtDate(r.date))} · ${cats.length} issues tracked · ${total} test variants run · Overall pass rate <strong>${passRate}%</strong>${resolved!==null?` · ${resolved} of ${cats.length} issues resolved`:''}`
+    : `${esc(r.test_type||'Criteria')} test run · ${esc(r.label||fmtDate(r.date))} · ${total} tests across ${cats.length} categories · Pass rate <strong>${passRate}%</strong>${cleanCats===cats.length?' · All categories clean':''}`;
 
-  const kpi3Label= isFB ? 'Failures' : 'Partials';
-  const kpi3Val  = isFB ? failed      : partial;
-  const kpi3Sub  = isFB
-    ? `<span class="pill ${failed===0?'green':'red'}">${pct(failed,total)}% fail rate</span>`
-    : `<span class="pill amber">to monitor</span>`;
-  const kpi4Label= isFB ? 'Issues Resolved' : 'Clean Categories';
-  const kpi4Val  = isFB ? (resolved??cleanCats) : cleanCats;
-  const kpi4Sub  = `<span class="pill green">of ${cats.length} ${isFB?'tracked':'categories'}</span>`;
+  const kpi3Val = isFB?failed:partial;
+  const kpi3Lbl = isFB?'Failures':'Partials';
+  const kpi3Sub = isFB
+    ? `<span class="chip ${failed===0?'green':'red'}">${pct(failed,total)}% fail rate</span>`
+    : `<span class="chip amber">to monitor</span>`;
+  const kpi4Val = isFB?(resolved??cleanCats):cleanCats;
+  const kpi4Lbl = isFB?'Issues Resolved':'Clean Categories';
+  const kpi4Sub = `<span class="chip green">of ${cats.length} ${isFB?'tracked':'categories'}</span>`;
 
-  // Category bars
-  const catHTML = !isFB ? `
-    <div class="section-block">
-      <div class="two-col">
-        <div class="card">
-          <h3>By Category</h3>
-          <p class="card-sub">Pass rate per test category</p>
-          <div class="cat-bars">
-            ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
-              const t=v.total||0,p=(v.pass||0)+(v.partial||0),f=v.fail||0;
-              const cp=pct(p,t), fc=f>0?'fail':(v.partial||0)>0?'partial':'full';
-              return `<div class="cat-row">
-                <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;${p}/${t}</span></div>
-                <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-        <div class="card">
-          <h3>Results Split</h3>
-          <p class="card-sub">${total} total tests</p>
-          <div class="donut-wrap">
-            <svg id="donut-svg" width="115" height="115" viewBox="0 0 110 110"></svg>
-            <div class="donut-legend">
-              ${[[passed,'#258ed8','Pass'],[partial,'#f0c040','Partial'],[failed,'#dd23bb','Fail'],[errored,'#aba9a9','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
-                <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>` : `
-    <div class="section-block" style="margin-bottom:20px">
-      <div class="card">
-        <h3>Results Split</h3>
-        <p class="card-sub">${esc(r.label||fmtDate(r.date))} — ${total} tests</p>
-        <div class="donut-wrap">
-          <svg id="donut-svg" width="115" height="115" viewBox="0 0 110 110"></svg>
-          <div class="donut-legend">
-            ${[[passed,'#258ed8','Pass'],[partial,'#f0c040','Partial'],[failed,'#dd23bb','Fail'],[errored,'#aba9a9','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
-              <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
-          </div>
+  const splitCard=`
+    <div class="card">
+      <h3>Results Split</h3>
+      <p class="card-sub">${esc(r.label||fmtDate(r.date))} — ${total} tests</p>
+      <div class="donut-wrap">
+        <svg id="donut-svg" width="120" height="120" viewBox="0 0 110 110"></svg>
+        <div class="donut-legend">
+          ${[[passed,'#258ed8','Pass'],[partial,'#f0c040','Partial'],[failed,'#dd23bb','Fail'],[errored,'#9ea3bd','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
+            <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
         </div>
       </div>
     </div>`;
 
-  const issueHTML = isFB ? buildIssueTracker(r, prevRun) : '';
+  const catHTML = !isFB?`
+    <div class="two-col">
+      <div class="card">
+        <h3>By Category</h3>
+        <p class="card-sub">Pass rate per test category</p>
+        <div class="cat-bars">
+          ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
+            const t=v.total||0,p=(v.pass||0)+(v.partial||0),f=v.fail||0;
+            const cp=pct(p,t),fc=f>0?'fail':(v.partial||0)>0?'partial':'full';
+            return `<div class="cat-row">
+              <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;(${p}/${t})</span></div>
+              <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      ${splitCard}
+    </div>`:`<div style="margin-bottom:28px">${splitCard}</div>`;
 
-  const partials = r.partials||[];
-  const partialsHTML = !isFB && partials.length ? `
-    <div class="section-title">Partials to Monitor</div>
-    <div class="partial-list" style="border-radius:4px;overflow:hidden;margin-bottom:20px">
+  const issueHTML = isFB?buildIssueTracker(r,prevRun):'';
+
+  const partials=r.partials||[];
+  const partialsHTML = !isFB&&partials.length?`
+    <div class="section-label">Partials to Monitor</div>
+    <div class="partial-list">
       ${partials.map(p=>`
         <div class="partial-item">
-          <div class="partial-header"><span class="partial-name">${esc(p.name)}</span><span class="partial-score">${esc(p.score||'Partial')}</span></div>
+          <div class="partial-header"><span class="partial-name">${esc(p.name)}</span><span class="partial-badge">${esc(p.score||'Partial')}</span></div>
           <div class="partial-summary">${esc(p.summary||p.notes||'')}</div>
         </div>`).join('')}
-    </div>` : '';
+    </div>`:'';
 
-  const trendHTML = buildTrendHTML(runs);
+  const trendHTML=buildTrendHTML(runs);
 
-  document.getElementById('main').innerHTML = `
+  document.getElementById('main').innerHTML=`
     ${warnBanner}
-    <div class="section-title">Summary</div>
+    <div class="section-label">Summary</div>
     <div class="summary-card">${summaryText}</div>
-    <div class="section-title">Test Results</div>
+    <div class="section-label">Test Results</div>
     <div class="kpi-grid">
       <div class="kpi">
         <div class="kpi-label">Pass Rate</div>
         <div class="kpi-num">${passRate}<span class="unit">%</span></div>
-        <div class="kpi-sub"><span class="pill ${passRate===100?'green':passRate>=80?'amber':'red'}">${passed+partial} of ${total} passing</span></div>
+        <div>${passed+partial} of ${total} passing &nbsp;<span class="chip ${passRate===100?'green':passRate>=80?'amber':'red'}" style="font-size:11px">${passRate>=80?(passRate===100?'All passing':'Above threshold'):'Below threshold'}</span></div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Tests Run</div>
         <div class="kpi-num">${total}</div>
-        <div class="kpi-sub"><span class="pill blue">${isFB?'variants':cats.length+' categories'}</span></div>
+        <div><span class="chip blue">${isFB?'issue-specific variants':cats.length+' categories'}</span></div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">${kpi3Label}</div>
+        <div class="kpi-label">${kpi3Lbl}</div>
         <div class="kpi-num">${kpi3Val}</div>
-        <div class="kpi-sub">${kpi3Sub}</div>
+        <div>${kpi3Sub}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">${kpi4Label}</div>
+        <div class="kpi-label">${kpi4Lbl}</div>
         <div class="kpi-num">${kpi4Val}</div>
-        <div class="kpi-sub">${kpi4Sub}</div>
+        <div>${kpi4Sub}</div>
       </div>
     </div>
-    <div class="section-title">Breakdown</div>
+    <div class="section-label">Breakdown</div>
     ${trendHTML}
     ${catHTML}
     ${issueHTML}
     ${partialsHTML}
     <div class="disclaimer">
-      Results reflect automated ${esc(r.test_type||'criteria')} testing against the ${esc(r.environment||'production')} environment.
+      Results reflect automated ${esc(r.test_type||'criteria')} testing against the ${esc(r.environment||'production')} environment${r.date?' on '+esc(fmtDate(r.date)):''}.
       ${failed>0?`${failed} test${failed>1?'s':''} failed defined criteria thresholds.`:'All tests passed defined criteria thresholds.'}
-      ${partial>0?`${partial} partial result${partial>1?'s':''} indicate tests where one criterion was not fully met but overall behaviour was correct.`:''}
+      ${partial>0?`${partial} partial result${partial>1?'s':''} indicate responses where one criterion was not fully met but overall behaviour was correct.`:''} Tests should be reviewed alongside manual testing.
     </div>`;
 
   drawDonut(
-    [[passed,'#258ed8'],[partial,'#f0c040'],[failed,'#dd23bb'],[errored,'#aba9a9']].filter(([v])=>v>0),
-    total, passRate
+    [[passed,'#258ed8'],[partial,'#f0c040'],[failed,'#dd23bb'],[errored,'#9ea3bd']].filter(([v])=>v>0),
+    total,passRate
   );
 }
 
-function drawDonut(slices, total, passRate) {
-  const svg = document.getElementById('donut-svg');
+function drawDonut(slices,total,passRate) {
+  const svg=document.getElementById('donut-svg');
   if (!svg||!total) return;
-  const cx=55,cy=55,r=40,sw=14,circ=2*Math.PI*r;
-  let offset=0, arcs='';
+  const cx=55,cy=55,r=40,sw=13,circ=2*Math.PI*r;
+  let offset=0,arcs='';
   slices.forEach(([v,c])=>{
     const d=(v/total)*circ;
     arcs+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-dasharray="${d} ${circ-d}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
     offset+=d;
   });
-  svg.innerHTML = arcs +
-    `<text x="${cx}" y="${cy-4}" text-anchor="middle" fill="#080331" font-size="15" font-weight="800" font-family="Montserrat">${passRate}%</text>` +
-    `<text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#aba9a9" font-size="9" font-family="Montserrat" font-weight="600" letter-spacing="0.5">PASS RATE</text>`;
+  svg.innerHTML=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f0f2f5" stroke-width="${sw}"/>`+arcs+
+    `<text x="${cx}" y="${cy-3}" text-anchor="middle" fill="#1a1a2e" font-size="16" font-weight="800" font-family="Montserrat">${passRate}%</text>`+
+    `<text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#9ea3bd" font-size="8" font-family="Montserrat" font-weight="600" letter-spacing="0.5">PASS RATE</text>`;
 }
 
 function buildTrendHTML(runs) {
-  const sorted = [...runs].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  if (sorted.length < 2) return '';
-  const W=660,H=130, pad={t:32,b:28,l:36,r:16};
-  const iW=W-pad.l-pad.r, iH=H-pad.t-pad.b;
-  const vals   = sorted.map(r=>r.pass_rate??pct(r.pass||0,r.total||1));
-  const minV   = Math.max(0,   Math.min(...vals)-10);
-  const maxV   = Math.min(100, Math.max(...vals)+10);
-  const xStep  = iW/Math.max(vals.length-1,1);
-  const yScale = v => iH-((v-minV)/(maxV-minV||1))*iH;
-  const pts    = vals.map((v,i)=>[pad.l+i*xStep, pad.t+yScale(v)]);
-  const area   = `M ${pts[0].join(',')} `+pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ')+
+  const sorted=[...runs].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if (sorted.length<2) return '';
+  const W=820,H=160,pad={t:40,b:32,l:36,r:20};
+  const iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  const vals=sorted.map(r=>r.pass_rate??pct(r.pass||0,r.total||1));
+  const minV=Math.max(0,Math.min(...vals)-15);
+  const maxV=Math.min(100,Math.max(...vals)+15);
+  const xStep=iW/Math.max(vals.length-1,1);
+  const yScale=v=>iH-((v-minV)/(maxV-minV||1))*iH;
+  const pts=vals.map((v,i)=>[pad.l+i*xStep,pad.t+yScale(v)]);
+  const area=`M ${pts[0].join(',')} `+pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ')+
     ` L ${pts[pts.length-1][0]},${pad.t+iH} L ${pad.l},${pad.t+iH} Z`;
-  const line   = `M ${pts[0].join(',')} `+pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ');
-
-  const yLabels = [0,50,100].map(v=>{
+  const line=`M ${pts[0].join(',')} `+pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ');
+  const yGrid=[0,50,100].map(v=>{
     const y=pad.t+yScale(Math.max(minV,Math.min(maxV,v)));
-    return `<text x="${pad.l-8}" y="${y+4}" text-anchor="end" font-size="8" fill="#aba9a9" font-family="Montserrat" font-weight="600">${v}%</text>
-            <line x1="${pad.l}" y1="${y}" x2="${pad.l+iW}" y2="${y}" stroke="#f3f3f3" stroke-width="1"/>`;
+    return `<line x1="${pad.l}" y1="${y}" x2="${pad.l+iW}" y2="${y}" stroke="#eaecf4" stroke-width="1"/>
+            <text x="${pad.l-8}" y="${y+4}" text-anchor="end" font-size="9" fill="#9ea3bd" font-family="Montserrat" font-weight="600">${v}%</text>`;
   }).join('');
-
-  const annotations = pts.map(([x,y],i)=>{
-    const v=vals[i], sel=sorted[i]===currentRun;
-    return `
-      <circle cx="${x}" cy="${y}" r="${sel?5:3.5}" fill="${sel?'#dd23bb':'#258ed8'}" stroke="#fff" stroke-width="2"/>
-      <text x="${x}" y="${y-11}" text-anchor="middle" font-size="9" font-weight="700" fill="${sel?'#dd23bb':'#258ed8'}" font-family="Montserrat">${v}%</text>
-      <text x="${x}" y="${H-4}" text-anchor="middle" font-size="8" fill="#aba9a9" font-family="Montserrat" font-weight="600">${esc((sorted[i].label||sorted[i].date||'').slice(0,6))}</text>`;
+  const dots=pts.map(([x,y],i)=>{
+    const v=vals[i],sel=sorted[i]===currentRun;
+    const c=sel?'#dd23bb':'#258ed8';
+    return `<circle cx="${x}" cy="${y}" r="${sel?6:4}" fill="${c}" stroke="#fff" stroke-width="2.5"/>
+            <text x="${x}" y="${y-13}" text-anchor="middle" font-size="10" font-weight="700" fill="${c}" font-family="Montserrat">${v}%</text>
+            <text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#9ea3bd" font-family="Montserrat" font-weight="600">${esc((sorted[i].label||sorted[i].date||'').slice(0,8))}</text>`;
   }).join('');
-
   return `
-    <div class="section-block" style="margin-bottom:20px">
-      <div class="trend-card">
-        <h3>Pass Rate Over Time</h3>
-        <p class="card-sub">Across all test runs to date</p>
-        <div class="trend-wrap">
-          <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;display:block">
-            <defs>
-              <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#258ed8" stop-opacity=".15"/>
-                <stop offset="100%" stop-color="#258ed8" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            ${yLabels}
-            <path d="${area}" fill="url(#tg)"/>
-            <path d="${line}" fill="none" stroke="#258ed8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-            ${annotations}
-          </svg>
-        </div>
+    <div class="trend-card">
+      <h3>Pass Rate Over Time</h3>
+      <p class="card-sub">Across all test runs to date</p>
+      <div class="trend-wrap">
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;display:block">
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#258ed8" stop-opacity=".12"/>
+              <stop offset="100%" stop-color="#258ed8" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${yGrid}
+          <path d="${area}" fill="url(#tg)"/>
+          <path d="${line}" fill="none" stroke="#258ed8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          ${dots}
+        </svg>
       </div>
     </div>`;
 }
 
 function exportCSV() {
   if (!currentRun) return;
-  const tests = currentRun.tests||[];
+  const tests=currentRun.tests||[];
   if (!tests.length) { alert('No test data for this run.'); return; }
-  const headers = ['test_id','name','category','status','score','summary'];
-  const rows = tests.map(t=>headers.map(h=>`"${String(t[h]||'').replace(/"/g,'""')}"`).join(','));
-  const csv  = [headers.join(','),...rows].join('\r\n');
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const headers=['test_id','name','category','status','score','summary'];
+  const rows=tests.map(t=>headers.map(h=>`"${String(t[h]||'').replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
   a.href=url; a.download=`tex-qa-${currentRun.date||'run'}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
@@ -560,15 +538,15 @@ function bindNav() {
 async function init() {
   bindNav();
   try {
-    const resp = await fetch('reports/qa_results.json');
+    const resp=await fetch('reports/qa_results.json');
     if (!resp.ok) throw new Error();
-    const data = await resp.json();
-    allRuns = (data.runs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const data=await resp.json();
+    allRuns=(data.runs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     if (allRuns.length) {
-      const dates = allRuns.map(r=>r.date).filter(Boolean).sort();
+      const dates=allRuns.map(r=>r.date).filter(Boolean).sort();
       if (dates.length) {
-        document.getElementById('date-from').value = dates[0];
-        document.getElementById('date-to').value   = dates[dates.length-1];
+        document.getElementById('date-from').value=dates[0];
+        document.getElementById('date-to').value=dates[dates.length-1];
         dateFrom=dates[0]; dateTo=dates[dates.length-1];
       }
     }
