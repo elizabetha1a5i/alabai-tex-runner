@@ -74,9 +74,10 @@ jobs:
             --label "$(date +'%B %Y')" \
             --screenshots-dir "cyphr-flow/screenshots/$(date +'%Y-%m-%d')"
 
-      - name: Copy dashboard page to cyphr-flow
+      - name: Copy dashboard pages to cyphr-flow
         run: |
           cp qa-dashboard.html cyphr-flow/qa-dashboard.html
+          cp qa-review.html    cyphr-flow/qa-review.html
 
       - name: Publish dashboard to cyphr-flow
         run: |
@@ -84,7 +85,7 @@ jobs:
           mkdir -p reports
           git config user.name  "Alibi AI"
           git config user.email "ci@alibi.ai"
-          git add qa-dashboard.html
+          git add qa-dashboard.html qa-review.html
           [ -f reports/qa_results.json ] && git add reports/qa_results.json || echo "No snapshot to add"
           git add screenshots/ 2>/dev/null || echo "No screenshots to add"
           git diff --staged --quiet || git commit -m "QA snapshot $(date +'%Y-%m-%d') — prod test run"

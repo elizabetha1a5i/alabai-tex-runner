@@ -6,7 +6,7 @@
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="pragma" content="no-cache" />
 <meta http-equiv="expires" content="0" />
-<title>Tex QA Dashboard</title>
+<title>Tex QA Review</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   :root {
@@ -33,7 +33,6 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Montserrat',sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased; }
 
-  /* ── Header ── */
   .header { background:var(--surface); border-bottom:1px solid var(--border); padding:18px 40px 14px; }
   .header-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
   .header-title { font-size:22px; font-weight:800; color:var(--text); letter-spacing:-.4px; }
@@ -48,17 +47,19 @@
   .badge.custom     { background:var(--amber-bg); color:var(--amber); }
   .badge.feedback   { background:#fce7f3; color:#9d174d; }
   .badge.week       { background:var(--green-bg); color:var(--green); }
+  .badge.review     { background:#fce7f3; color:#9d174d; }
 
-  /* ── Toolbar ── */
-  .toolbar { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 40px; display:flex; gap:8px; align-items:center; }
+  .toolbar { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 40px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .toolbar-btn { border:1.5px solid var(--border); background:var(--bg); border-radius:8px; padding:6px 16px; font-size:11px; font-weight:600; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--text-mid); letter-spacing:.3px; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
   .toolbar-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
   .toolbar-btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); }
   .toolbar-btn.primary:hover { background:#1a7bbf; border-color:#1a7bbf; }
   .toolbar-btn.accent { background:var(--pink); color:#fff; border-color:var(--pink); }
   .toolbar-btn.accent:hover { background:#be1ea0; border-color:#be1ea0; }
+  .toolbar-btn.publish { background:var(--green); color:#fff; border-color:var(--green); font-size:12px; padding:8px 20px; }
+  .toolbar-btn.publish:hover { background:#0d6024; border-color:#0d6024; }
+  .toolbar-sep { width:1px; height:28px; background:var(--border); margin:0 4px; }
 
-  /* ── Nav bar ── */
   .nav-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:center; gap:4px; }
   .tab-btn { padding:13px 18px; font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--text-light); border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; }
   .tab-btn:hover { color:var(--text-mid); }
@@ -69,26 +70,22 @@
   .pill-btn:hover { border-color:var(--blue); color:var(--blue); }
   .pill-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
 
-  /* ── Filter bar ── */
   .filter-bar { background:var(--bg); border-bottom:1px solid var(--border); padding:8px 40px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
   .filter-group { display:flex; align-items:center; gap:8px; }
   .filter-bar label { font-size:10px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--text-light); }
   .filter-bar select, .filter-bar input[type="date"] { border:1.5px solid var(--border); border-radius:8px; padding:5px 12px; font-size:12px; font-family:'Montserrat',sans-serif; background:var(--surface); color:var(--text); outline:none; font-weight:500; }
   .filter-bar select:focus, .filter-bar input[type="date"]:focus { border-color:var(--blue); }
 
-  /* ── Main layout ── */
   .main { max-width:900px; margin:0 auto; padding:32px 24px; }
   .section-label { font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-light); margin-bottom:10px; }
 
-  /* ── Warning banner ── */
   .warn-banner { background:var(--amber-bg); border:1px solid var(--amber-border); border-radius:var(--radius); padding:14px 18px; margin-bottom:24px; font-size:12.5px; color:var(--amber); line-height:1.65; font-weight:500; display:flex; gap:10px; align-items:flex-start; }
   .warn-banner strong { font-weight:700; }
+  .review-banner { background:#fce7f3; border-bottom:1px solid #f9a8d4; padding:10px 40px; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:#9d174d; }
 
-  /* ── Summary card ── */
   .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; margin-bottom:28px; font-size:13px; color:var(--text-mid); line-height:1.75; box-shadow:var(--shadow); }
   .summary-card strong { color:var(--text); font-weight:700; }
 
-  /* ── KPI grid ── */
   .kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:28px; }
   .kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px 26px; box-shadow:var(--shadow); }
   .kpi-label { font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-light); margin-bottom:14px; }
@@ -100,13 +97,11 @@
   .chip.blue   { background:var(--blue-light); color:var(--blue); }
   .chip.red    { background:var(--red-bg); color:var(--red); }
 
-  /* ── Cards ── */
   .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); }
   .card h3 { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
   .card-sub { font-size:12px; color:var(--text-light); margin-bottom:20px; font-weight:500; }
   .two-col { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-bottom:28px; }
 
-  /* ── Category bars ── */
   .cat-bars { display:flex; flex-direction:column; gap:14px; }
   .cat-row { display:flex; flex-direction:column; gap:6px; }
   .cat-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-mid); font-weight:600; }
@@ -117,18 +112,15 @@
   .bar-fill.partial { background:#f0c040; }
   .bar-fill.fail    { background:var(--red); }
 
-  /* ── Donut ── */
   .donut-wrap { display:flex; align-items:center; gap:24px; }
   .donut-legend { display:flex; flex-direction:column; gap:12px; flex:1; }
   .legend-item { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-mid); font-weight:500; }
   .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .legend-val { font-weight:700; color:var(--text); margin-left:auto; }
 
-  /* ── Trend ── */
   .trend-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:28px; box-shadow:var(--shadow); }
   .trend-wrap { margin-top:16px; overflow-x:auto; }
 
-  /* ── Issue tracker ── */
   .issue-list { display:flex; flex-direction:column; margin-bottom:28px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
   .issue-header-card { background:var(--surface); border:1px solid var(--border); padding:18px 24px 14px; border-bottom:none; }
   .issue-header-card h3 { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
@@ -147,7 +139,6 @@
   .open-chip    { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--amber); background:var(--amber-bg); padding:3px 10px; border-radius:20px; white-space:nowrap; }
   .issue-date   { font-size:10px; color:var(--text-light); margin-left:auto; white-space:nowrap; }
 
-  /* ── Partials ── */
   .partial-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
   .partial-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
   .partial-item.overridden { border-color:var(--green); background:var(--green-bg); opacity:.85; }
@@ -159,27 +150,40 @@
   .criteria-tag.warn { background:var(--amber-bg); color:var(--amber); border-color:var(--amber-border); }
   .link-btn        { font-size:10px; font-weight:600; color:var(--blue); text-decoration:none; padding:3px 10px; border-radius:20px; border:1px solid var(--blue-light); background:var(--blue-light); white-space:nowrap; }
   .link-btn:hover  { background:#c7e5f7; }
-  .reviewed-banner { background:var(--green-bg); border-bottom:1px solid #b7f5c8; padding:10px 40px; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:var(--green); }
-  .pending-banner  { background:var(--amber-bg); border-bottom:1px solid var(--amber-border); padding:10px 40px; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:var(--amber); }
+  .override-btn    { font-size:10px; font-weight:700; padding:3px 12px; border-radius:20px; border:1.5px solid var(--border); background:transparent; color:var(--text-light); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:auto; white-space:nowrap; }
+  .override-btn:hover  { border-color:var(--green); color:var(--green); }
+  .override-note   { font-size:10px; color:var(--green); font-weight:600; }
+  .remove-override-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; border:1.5px solid var(--green); background:var(--green-bg); color:var(--green); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:6px; white-space:nowrap; }
+  .remove-override-btn:hover { background:#b7f5c8; border-color:#0d6024; color:#0d6024; }
+  .partial-badge.pass-override { background:var(--green-bg); color:var(--green); border:1px solid #b7f5c8; }
+  body.hide-overrides .overridden { display:none !important; }
+
   /* ── Tooltip ── */
   .has-tooltip { position:relative; }
   .has-tooltip .tip { display:none; position:absolute; bottom:calc(100% + 6px); left:0; z-index:99; background:#1a2535; color:#fff; font-size:11px; line-height:1.5; padding:8px 12px; border-radius:8px; width:320px; max-width:90vw; white-space:pre-wrap; box-shadow:0 4px 16px rgba(0,0,0,.18); pointer-events:none; }
   .has-tooltip .tip::after { content:''; position:absolute; top:100%; left:18px; border:6px solid transparent; border-top-color:#1a2535; }
   .has-tooltip:hover .tip { display:block; }
 
-  /* ── Fails list ── */
   .fail-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
-  .fail-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
-
   .disclaimer { font-size:11px; color:var(--text-light); padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); line-height:1.75; margin-bottom:24px; font-weight:500; box-shadow:var(--shadow); }
   .footer { text-align:center; padding:20px; font-size:11px; color:var(--text-light); border-top:1px solid var(--border); font-weight:600; letter-spacing:.5px; }
   .empty { text-align:center; padding:80px 20px; }
   .empty h2 { font-size:20px; font-weight:800; color:var(--text); margin-bottom:8px; }
   .empty p  { font-size:13px; color:var(--text-light); font-weight:500; }
 
+  /* ── Token modal ── */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:var(--radius); padding:32px; max-width:480px; width:90%; box-shadow:0 8px 40px rgba(0,0,0,.18); }
+  .modal h2 { font-size:17px; font-weight:800; margin-bottom:8px; }
+  .modal p  { font-size:12px; color:var(--text-mid); margin-bottom:20px; line-height:1.7; }
+  .modal input { width:100%; border:1.5px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13px; font-family:'Montserrat',sans-serif; outline:none; margin-bottom:16px; }
+  .modal input:focus { border-color:var(--blue); }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+
   @media print {
     body { background:white; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .toolbar,.nav-bar,.filter-bar,.reviewed-banner,.pending-banner { display:none !important; }
+    .toolbar,.nav-bar,.filter-bar,.review-banner { display:none !important; }
     .kpi,.issue-item,.partial-item { break-inside:avoid; }
   }
   @media (max-width:700px) {
@@ -190,12 +194,14 @@
 </head>
 <body>
 
-<div id="reviewed-banner" style="display:none"></div>
+<div class="review-banner">
+  🔒 Private review mode — changes here are not visible to the team until you publish
+</div>
 
 <header class="header">
   <div class="header-top">
     <div>
-      <div class="header-title">Tex QA Dashboard</div>
+      <div class="header-title">Tex QA Review <span class="badge review" style="vertical-align:middle;font-size:9px">PRIVATE</span></div>
     </div>
     <div class="header-right">
       <div class="header-date" id="header-date"></div>
@@ -208,6 +214,10 @@
   <a href="https://elizabetha1a5i.github.io/cyphr-flow/index.html" class="toolbar-btn">&#8592; Back</a>
   <button class="toolbar-btn primary" onclick="exportPDF()">&#8659; Export PDF</button>
   <button class="toolbar-btn accent" onclick="exportCSV()">&#8595; Export CSV</button>
+  <button class="toolbar-btn" id="hide-overrides-btn" onclick="toggleHideOverrides()">&#128065; Hide manual passes</button>
+  <div class="toolbar-sep"></div>
+  <button class="toolbar-btn publish" onclick="openPublishModal()">&#10003; Publish Approved Results</button>
+  <span id="pending-badge" style="font-size:11px;color:var(--text-light);display:none"></span>
 </div>
 
 <nav class="nav-bar">
@@ -237,7 +247,20 @@
 </div>
 
 <main class="main" id="main"></main>
-<footer class="footer" id="footer">Tex QA · Weber Ranch</footer>
+<footer class="footer" id="footer">Tex QA Review · Weber Ranch</footer>
+
+<!-- Token modal -->
+<div class="modal-overlay" id="token-modal">
+  <div class="modal">
+    <h2>GitHub Token Required</h2>
+    <p>To publish approved results, enter a GitHub Personal Access Token with <strong>contents:write</strong> permission on <code>elizabetha1a5i/cyphr-flow</code>.<br><br>The token is stored in session memory only and cleared when you close the tab.</p>
+    <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+    <div class="modal-actions">
+      <button class="toolbar-btn" onclick="closeTokenModal()">Cancel</button>
+      <button class="toolbar-btn publish" onclick="confirmToken()">Save &amp; Publish</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let allRuns = [], currentRun = null, activeEnv = 'all', activeType = 'all';
@@ -260,6 +283,12 @@ function fmtDate(d) {
   if (!d) return '—';
   return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric'});
 }
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
 function pct(n,t) { return t ? Math.round((n/t)*100) : 0; }
 
 function updateHeader() {
@@ -272,14 +301,11 @@ function updateHeader() {
     `<span class="badge ${env}">${esc(env)}</span>` +
     `<span class="badge ${type}">${esc(type)}</span>` +
     weekBadge;
-  document.getElementById('header-date').innerHTML =
-    `<strong>${esc(label)}</strong>`;
-  document.getElementById('footer').textContent =
-    `Tex QA Dashboard · ${esc(type)} · ${esc(label)}`;
+  document.getElementById('header-date').innerHTML = `<strong>${esc(label)}</strong>`;
+  document.getElementById('footer').textContent = `Tex QA Review · ${esc(type)} · ${esc(label)}`;
 }
 
 function fmtRunLabel(r, i) {
-  // Prefer timestamp for specific time, fall back to date only
   let datePart = r.date || `Run ${i+1}`;
   if (r.timestamp) {
     const d = new Date(r.timestamp);
@@ -308,12 +334,34 @@ function updateRunSelector() {
   sel.innerHTML = allOpt + runOpts;
 }
 
+function countPendingOverrides() {
+  let count = 0;
+  allRuns.forEach(r => {
+    const key = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
+    try {
+      const ov = JSON.parse(localStorage.getItem(key)||'{}');
+      count += Object.keys(ov).length;
+    } catch(e) {}
+  });
+  return count;
+}
+
+function updatePendingBadge() {
+  const n = countPendingOverrides();
+  const el = document.getElementById('pending-badge');
+  if (n > 0) {
+    el.style.display = '';
+    el.textContent = `(${n} manual pass${n!==1?'es':''} pending)`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function buildIssueTracker(r, prevRun) {
   const cats = Object.entries(r.categories||{});
   if (!cats.length) return '';
   const prevCats = prevRun ? (prevRun.categories||{}) : {};
   const resolved = cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length;
-
   const rows = cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
     const total=v.total||0, passing=(v.pass||0)+(v.partial||0);
     const rate = pct(passing,total);
@@ -339,7 +387,6 @@ function buildIssueTracker(r, prevRun) {
         </div>
       </div>`;
   }).join('');
-
   return `
     <div class="section-label">Issue Tracker</div>
     <div class="issue-list">
@@ -359,7 +406,7 @@ function render() {
   }
   if (showAllRuns) { renderAllRuns(runs); updateRunSelector(); return; }
   if (!currentRun || !runs.includes(currentRun)) currentRun = runs[runs.length-1];
-  updateHeader(); updateRunSelector();
+  updateHeader(); updateRunSelector(); updatePendingBadge();
 
   const r        = currentRun;
   const rIdx     = runs.indexOf(r);
@@ -369,7 +416,12 @@ function render() {
   const partial  = r.partial|| 0;
   const failed   = r.fail   || 0;
   const errored  = r.error  || 0;
-  const passRate = r.pass_rate ?? (total ? Math.min(100, Math.round(((passed + partial) / total) * 100)) : 0);
+  const overrideKey = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
+  const failIds = new Set((r.tests||[]).filter(t=>t.status==='FAIL'||t.status==='ERROR').map(t=>t.id));
+  const overrideCount = Object.keys(overrides).filter(id => failIds.has(id)).length;
+  const passRate = total ? Math.min(100, Math.round(((passed + partial + overrideCount) / total) * 100)) : (r.pass_rate ?? 0);
   const isFB     = (r.test_type||'criteria') === 'feedback';
   const cats     = Object.entries(r.categories||{});
   const cleanCats= cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
@@ -378,7 +430,7 @@ function render() {
   const warnBanner = isFB ? `
     <div class="warn-banner">
       <span>⚠️</span>
-      <span>This report covers <strong>issue-specific tests</strong> only — targeted tests raised against known feedback items. General scheduled test results are tracked separately.</span>
+      <span>This report covers <strong>issue-specific tests</strong> only.</span>
     </div>` : '';
 
   const summaryText = isFB
@@ -429,6 +481,8 @@ function render() {
   const issueHTML = isFB ? buildIssueTracker(r, prevRun) : '';
 
   function testCard(t, typeClass) {
+    const oid = t.id || t.name;
+    const isOverridden = !!overrides[oid];
     const criteriaStr = t.criteria_failed||t.critical_failures||t.high_failures||'';
     const critTags = criteriaStr.split(/[,;|]/).map(s=>s.trim()).filter(Boolean)
       .map(c=>`<span class="criteria-tag ${typeClass==='warn'?'warn':''}">${esc(c)}</span>`).join('');
@@ -436,22 +490,25 @@ function render() {
       ? `<a class="link-btn" href="${esc(t.screenshot_path)}" target="_blank">📸 Screenshot</a>` : '';
     const convLink = t.conversation_path
       ? `<a class="link-btn" href="${esc(t.conversation_path)}" target="_blank">💬 Conversation</a>` : '';
-    const isManualPass = !!t.manually_passed;
-    const badgeLabel = isManualPass ? 'Pass' : (t.score || (typeClass==='warn' ? 'Partial' : 'Fail'));
-    const badgeStyle = isManualPass ? 'background:var(--green-bg);color:var(--green);border:1px solid #b7f5c8;' : '';
+    const badgeLabel = isOverridden ? 'Pass' : (t.score || (typeClass==='warn' ? 'Partial' : 'Fail'));
+    const badgeClass = isOverridden ? 'pass-override' : '';
     const tipText = t.summary || '';
     return `
-      <div class="partial-item ${tipText?'has-tooltip':''}">
+      <div class="partial-item ${isOverridden?'overridden':''} ${tipText?'has-tooltip':''}" id="card_${esc(oid)}">
         ${tipText ? `<div class="tip">${esc(tipText)}</div>` : ''}
         <div class="partial-header">
           <span class="partial-name">${esc(t.name)}</span>
-          <span class="partial-badge" style="${badgeStyle}">${esc(badgeLabel)}</span>
+          <span class="partial-badge ${badgeClass}">${esc(badgeLabel)}</span>
         </div>
         <div class="partial-footer">
           ${critTags}
           ${screenshotLink}
           ${convLink}
-          ${isManualPass ? `<span style="font-size:10px;color:var(--green);font-weight:600;margin-left:auto">✓ Reviewed</span>` : ''}
+          ${isOverridden
+            ? `<span class="override-note" style="margin-left:auto">✓ Manually passed</span>
+               <button class="remove-override-btn" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" title="Remove override">✕</button>`
+            : `<button class="override-btn" onclick="toggleOverride('${esc(oid)}','${esc(overrideKey)}')" style="margin-left:auto">✓ Mark as pass</button>`
+          }
         </div>
       </div>`;
   }
@@ -548,13 +605,11 @@ function buildTrendHTML(runs) {
   const area   = `M ${pts[0].join(',')} ` + pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ') +
     ` L ${pts[pts.length-1][0]},${pad.t+iH} L ${pad.l},${pad.t+iH} Z`;
   const line   = `M ${pts[0].join(',')} ` + pts.slice(1).map(p=>`L ${p.join(',')}`).join(' ');
-
   const yGrid = [0,50,100].map(v => {
     const y = pad.t + yScale(Math.max(minV,Math.min(maxV,v)));
     return `<line x1="${pad.l}" y1="${y}" x2="${pad.l+iW}" y2="${y}" stroke="#eaecf4" stroke-width="1"/>
             <text x="${pad.l-8}" y="${y+4}" text-anchor="end" font-size="9" fill="#9ea3b8" font-family="Montserrat" font-weight="600">${v}%</text>`;
   }).join('');
-
   const dots = pts.map(([x,y],i) => {
     const v   = vals[i];
     const sel = sorted[i] === currentRun;
@@ -563,7 +618,6 @@ function buildTrendHTML(runs) {
             <text x="${x}" y="${y-13}" text-anchor="middle" font-size="10" font-weight="700" fill="${c}" font-family="Montserrat">${v}%</text>
             <text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#9ea3b8" font-family="Montserrat" font-weight="600">${esc(sorted[i].timestamp ? sorted[i].timestamp.slice(5,16).replace('T',' ') : (sorted[i].date||'').slice(0,8))}</text>`;
   }).join('');
-
   return `
     <div class="trend-card">
       <h3>Pass Rate Over Time</h3>
@@ -586,7 +640,6 @@ function buildTrendHTML(runs) {
 }
 
 function renderAllRuns(runs) {
-  // Aggregate all tests across all filtered runs, deduped by test id — most recent run wins
   const seen = new Map();
   [...runs].forEach(r => {
     (r.tests||[]).forEach(t => { if (t.id) seen.set(t.id, {t, r}); });
@@ -598,7 +651,6 @@ function renderAllRuns(runs) {
   const failed  = all.filter(({t})=>t.status==='FAIL').length;
   const errored = all.filter(({t})=>t.status==='ERROR').length;
   const passRate = total ? Math.min(100, Math.round((passed+partial)/total*100)) : 0;
-
   const failCards = all.filter(({t})=>t.status==='FAIL'||t.status==='ERROR').map(({t,r})=>{
     const tip = t.summary || '';
     return `<div class="partial-item ${tip?'has-tooltip':''}" style="position:relative">
@@ -610,7 +662,6 @@ function renderAllRuns(runs) {
       </div>
     </div>`;
   }).join('');
-
   document.getElementById('main').innerHTML = `
     <div class="section-label">All Runs — Aggregated (${runs.length} run${runs.length!==1?'s':''})</div>
     <div class="summary-card">Showing latest result per test across all filtered runs · ${total} unique tests · Pass rate <strong>${passRate}%</strong></div>
@@ -624,6 +675,132 @@ function renderAllRuns(runs) {
     ${failCards ? `<div class="section-label">Failing Tests</div><div class="fail-list">${failCards}</div>` : '<div class="summary-card">All tests passing across selected runs ✓</div>'}`;
 }
 
+function toggleHideOverrides() {
+  const hiding = document.body.classList.toggle('hide-overrides');
+  const btn = document.getElementById('hide-overrides-btn');
+  btn.textContent = hiding ? '👁 Show manual passes' : '👁 Hide manual passes';
+  btn.classList.toggle('active', hiding);
+  // Also set explicit display for reliability
+  document.querySelectorAll('.overridden').forEach(el => {
+    el.style.display = hiding ? 'none' : '';
+  });
+}
+
+function toggleOverride(testId, overrideKey) {
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
+  if (overrides[testId]) {
+    delete overrides[testId];
+  } else {
+    overrides[testId] = { overriddenAt: new Date().toISOString() };
+  }
+  localStorage.setItem(overrideKey, JSON.stringify(overrides));
+  render();
+}
+
+// ── Publish ────────────────────────────────────────────────────────────────
+
+function openPublishModal() {
+  const token = sessionStorage.getItem('gh_token');
+  if (token) {
+    doPublish(token);
+  } else {
+    document.getElementById('token-modal').classList.add('open');
+    document.getElementById('token-input').value = '';
+    setTimeout(() => document.getElementById('token-input').focus(), 50);
+  }
+}
+
+function closeTokenModal() {
+  document.getElementById('token-modal').classList.remove('open');
+}
+
+function confirmToken() {
+  const token = document.getElementById('token-input').value.trim();
+  if (!token) { alert('Please enter a token.'); return; }
+  sessionStorage.setItem('gh_token', token);
+  closeTokenModal();
+  doPublish(token);
+}
+
+async function doPublish(token) {
+  const btn = document.querySelector('.toolbar-btn.publish');
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Publishing…';
+  btn.disabled = true;
+
+  try {
+    // Build approved JSON — bake overrides in as PASS status
+    const approvedRuns = allRuns.map(r => {
+      const key = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
+      let ov = {};
+      try { ov = JSON.parse(localStorage.getItem(key)||'{}'); } catch(e) {}
+
+      const tests = (r.tests||[]).map(t => {
+        if (ov[t.id||t.name]) return {...t, status:'PASS', manually_passed:true};
+        return t;
+      });
+      const total   = tests.length;
+      const pass    = tests.filter(t=>t.status==='PASS').length;
+      const partial = tests.filter(t=>t.status==='WARN').length;
+      const fail    = tests.filter(t=>t.status==='FAIL').length;
+      const error   = tests.filter(t=>t.status==='ERROR').length;
+      const pass_rate = total ? Math.min(100, Math.round((pass+partial)/total*100)) : 0;
+      return {...r, tests, pass, partial, fail, error, pass_rate, total};
+    });
+
+    const payload = {
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: 'Elizabeth',
+      runs: approvedRuns
+    };
+
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+    const repo = 'elizabetha1a5i/cyphr-flow';
+    const path = 'reports/qa_approved.json';
+
+    // Get existing file SHA if it exists
+    let sha = null;
+    try {
+      const getResp = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (getResp.ok) sha = (await getResp.json()).sha;
+    } catch(e) {}
+
+    const putResp = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({
+        message: `QA approved — reviewed ${new Date().toISOString().slice(0,10)}`,
+        content,
+        ...(sha ? {sha} : {})
+      })
+    });
+
+    if (putResp.ok) {
+      btn.textContent = '✓ Published!';
+      btn.style.background = '#137333';
+      setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.disabled = false; }, 3000);
+    } else {
+      const err = await putResp.json();
+      if (putResp.status === 401) {
+        sessionStorage.removeItem('gh_token');
+        alert('Token invalid or expired. Please try again.');
+      } else {
+        alert(`Publish failed: ${err.message||putResp.status}`);
+      }
+      btn.textContent = orig; btn.disabled = false;
+    }
+  } catch(e) {
+    alert(`Publish error: ${e.message}`);
+    btn.textContent = orig; btn.disabled = false;
+  }
+}
 
 function exportCSV() {
   if (!currentRun) return;
@@ -635,7 +812,7 @@ function exportCSV() {
   const blob    = new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url     = URL.createObjectURL(blob);
   const a       = document.createElement('a');
-  a.href=url; a.download=`tex-qa-${currentRun.date||'run'}.csv`; a.click();
+  a.href=url; a.download=`tex-qa-review-${currentRun.date||'run'}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
 function exportPDF() { window.print(); }
@@ -656,6 +833,9 @@ function bindNav() {
   });
   document.getElementById('date-from').addEventListener('change', e => { dateFrom=e.target.value; currentRun=null; render(); });
   document.getElementById('date-to').addEventListener('change',   e => { dateTo  =e.target.value; currentRun=null; render(); });
+  document.getElementById('token-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('token-modal')) closeTokenModal();
+  });
 }
 
 function clearDates() {
@@ -665,47 +845,24 @@ function clearDates() {
   render();
 }
 
-function fmtDateTime(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + ' at ' +
-         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-}
-
 async function init() {
   bindNav();
   try {
-    const resp = await fetch('reports/qa_approved.json');
-    if (!resp.ok) {
-      // Not yet approved — show pending state
-      document.getElementById('reviewed-banner').outerHTML =
-        `<div class="pending-banner">⏳ Results pending review — check back soon for the latest approved results.</div>`;
-      document.getElementById('main').innerHTML =
-        `<div class="empty"><h2>Results pending review</h2><p>The latest test run has not yet been reviewed and approved. Check back soon.</p></div>`;
-      return;
-    }
+    const resp = await fetch('reports/qa_results.json');
+    if (!resp.ok) throw new Error();
     const data = await resp.json();
-
-    // Show reviewed banner
-    if (data.reviewed_at) {
-      const el = document.getElementById('reviewed-banner');
-      el.className = 'reviewed-banner';
-      el.style.display = '';
-      el.innerHTML = `✓ Last reviewed ${fmtDateTime(data.reviewed_at)} by ${esc(data.reviewed_by||'Elizabeth')}`;
-    }
-
     allRuns = (data.runs||[]).slice().sort((a,b)=>{
       const ka = a.timestamp || a.date || '';
       const kb = b.timestamp || b.date || '';
       return ka.localeCompare(kb);
     });
     if (!allRuns.length) {
-      document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>No approved runs found.</p></div>`;
+      document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
       return;
     }
     render();
   } catch(e) {
-    document.getElementById('main').innerHTML = `<div class="empty"><h2>Results pending review</h2><p>The latest test run has not yet been reviewed. Check back soon.</p></div>`;
+    document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
   }
 }
 document.addEventListener('DOMContentLoaded', init);
