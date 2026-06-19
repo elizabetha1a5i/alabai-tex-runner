@@ -166,6 +166,7 @@
   .remove-override-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; border:1.5px solid var(--green); background:var(--green-bg); color:var(--green); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:6px; white-space:nowrap; }
   .remove-override-btn:hover { background:#b7f5c8; border-color:#0d6024; color:#0d6024; }
   .partial-badge.pass-override { background:var(--green-bg); color:var(--green); border:1px solid #b7f5c8; }
+  body.hide-overrides .overridden { display:none !important; }
   /* ── Tooltip ── */
   .has-tooltip { position:relative; }
   .has-tooltip .tip { display:none; position:absolute; bottom:calc(100% + 6px); left:0; z-index:99; background:#1a2535; color:#fff; font-size:11px; line-height:1.5; padding:8px 12px; border-radius:8px; width:320px; max-width:90vw; white-space:pre-wrap; box-shadow:0 4px 16px rgba(0,0,0,.18); pointer-events:none; }
@@ -212,6 +213,7 @@
   <a href="https://elizabetha1a5i.github.io/cyphr-flow/index.html" class="toolbar-btn">&#8592; Back</a>
   <button class="toolbar-btn primary" onclick="exportPDF()">&#8659; Export PDF</button>
   <button class="toolbar-btn accent" onclick="exportCSV()">&#8595; Export CSV</button>
+  <button class="toolbar-btn" id="hide-overrides-btn" onclick="toggleHideOverrides()">&#128065; Hide manual passes</button>
 </div>
 
 <nav class="nav-bar">
@@ -638,6 +640,13 @@ function renderAllRuns(runs) {
       <div class="kpi"><div class="kpi-label">Partials</div><div class="kpi-num">${partial}</div></div>
     </div>
     ${failCards ? `<div class="section-label">Failing Tests</div><div class="fail-list">${failCards}</div>` : '<div class="summary-card">All tests passing across selected runs ✓</div>'}`;
+}
+
+function toggleHideOverrides() {
+  const hiding = document.body.classList.toggle('hide-overrides');
+  const btn = document.getElementById('hide-overrides-btn');
+  btn.textContent = hiding ? '👁 Show manual passes' : '👁 Hide manual passes';
+  btn.classList.toggle('active', hiding);
 }
 
 function toggleOverride(testId, overrideKey) {
