@@ -142,6 +142,25 @@ def _tex_is_requesting_ppi(tex_response_text: str) -> bool:
     lower = tex_response_text.lower()
     return any(phrase in lower for phrase in _PPI_REQUEST_PHRASES)
 
+# Phrases that indicate Tex is asking for explicit yes/no SMS opt-in confirmation
+_SMS_CONFIRM_PHRASES = [
+    "yes or no",
+    "enter yes",
+    "type yes",
+    "reply yes",
+    "please confirm",
+    "confirm if you",
+    "like to receive weber ranch",
+    "receive weber ranch updates",
+    "would you like to receive",
+    "do you agree to receive",
+]
+
+def _tex_is_requesting_sms_confirmation(tex_response_text: str) -> bool:
+    """Return True if Tex is asking for a yes/no SMS opt-in confirmation."""
+    lower = tex_response_text.lower()
+    return any(phrase in lower for phrase in _SMS_CONFIRM_PHRASES)
+
 CUSTOM_TEST_IDENTITIES = [
     {"name": "Alex",   "age": 28, "dob": "14/03/1998", "phone": "555-9001"},
     {"name": "Jordan", "age": 34, "dob": "22/07/1991", "phone": "555-9002"},
@@ -1888,6 +1907,14 @@ async def run_test(test_case, page, drive_service, folder_id,
                         print(f"  [PPI] Tex requested identity — sending profile data")
                         await _send_message(ppi_reply)
                         ppi_sent = True
+                        # After submitting PPI, Tex may ask for explicit yes/no SMS confirmation
+                        if _tex_is_requesting_sms_confirmation(current_text):
+                            print(f"  [SMS] Tex requested opt-in confirmation — sending 'yes'")
+                            await _send_message("yes")
+                    elif ppi_sent and _tex_is_requesting_sms_confirmation(current_text):
+                        # Catch the confirmation prompt even if it arrives on a later turn
+                        print(f"  [SMS] Tex requested opt-in confirmation — sending 'yes'")
+                        await _send_message("yes")
 
                 partial = await scrape_widget_conversation(page)
                 await page.wait_for_timeout(1000)
