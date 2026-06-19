@@ -166,6 +166,11 @@
   .remove-override-btn { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; border:1.5px solid var(--green); background:var(--green-bg); color:var(--green); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin-left:6px; white-space:nowrap; }
   .remove-override-btn:hover { background:#b7f5c8; border-color:#0d6024; color:#0d6024; }
   .partial-badge.pass-override { background:var(--green-bg); color:var(--green); border:1px solid #b7f5c8; }
+  /* ── Tooltip ── */
+  .has-tooltip { position:relative; }
+  .has-tooltip .tip { display:none; position:absolute; bottom:calc(100% + 6px); left:0; z-index:99; background:#1a2535; color:#fff; font-size:11px; line-height:1.5; padding:8px 12px; border-radius:8px; width:320px; max-width:90vw; white-space:pre-wrap; box-shadow:0 4px 16px rgba(0,0,0,.18); pointer-events:none; }
+  .has-tooltip .tip::after { content:''; position:absolute; top:100%; left:18px; border:6px solid transparent; border-top-color:#1a2535; }
+  .has-tooltip:hover .tip { display:block; }
 
   /* ── Fails list ── */
   .fail-list { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
@@ -240,7 +245,7 @@
 
 <script>
 let allRuns = [], currentRun = null, activeEnv = 'all', activeType = 'all';
-let dateFrom = '', dateTo = '';
+let dateFrom = '', dateTo = '', showAllRuns = false;
 
 function filteredRuns() {
   return allRuns.filter(r => {
@@ -298,12 +303,13 @@ function fmtRunLabel(r, i) {
 function updateRunSelector() {
   const runs = filteredRuns();
   const sel  = document.getElementById('run-select');
-  sel.innerHTML = runs.length
-    ? runs.map((r,i) => {
-        const lbl = fmtRunLabel(r, i);
-        return `<option value="${i}" ${r===currentRun?'selected':''}>${esc(lbl)}</option>`;
-      }).join('')
-    : '<option>No runs match filters</option>';
+  if (!runs.length) { sel.innerHTML = '<option>No runs match filters</option>'; return; }
+  const allOpt = `<option value="all" ${showAllRuns?'selected':''}>— All runs —</option>`;
+  const runOpts = runs.map((r,i) => {
+    const lbl = fmtRunLabel(r, i);
+    return `<option value="${i}" ${!showAllRuns&&r===currentRun?'selected':''}>${esc(lbl)}</option>`;
+  }).join('');
+  sel.innerHTML = allOpt + runOpts;
 }
 
 function buildIssueTracker(r, prevRun) {
@@ -355,6 +361,7 @@ function render() {
     document.getElementById('main').innerHTML = `<div class="empty"><h2>No data</h2><p>No runs match the current filters.</p></div>`;
     return;
   }
+  if (showAllRuns) { renderAllRuns(runs); updateRunSelector(); return; }
   if (!currentRun || !runs.includes(currentRun)) currentRun = runs[runs.length-1];
   updateHeader(); updateRunSelector();
 
@@ -443,8 +450,11 @@ function render() {
       ? `<a class="link-btn" href="${esc(t.conversation_path)}" target="_blank">💬 Conversation</a>` : '';
     const badgeLabel = isOverridden ? 'Pass' : (t.score || (typeClass==='warn' ? 'Partial' : 'Fail'));
     const badgeClass = isOverridden ? 'pass-override' : '';
+    const tipParts = [t.summary, t.notes, t.criteria_failed||t.critical_failures||t.high_failures].filter(Boolean);
+    const tipText = tipParts.join('\n\n');
     return `
-      <div class="partial-item ${isOverridden?'overridden':''}" id="card_${esc(oid)}">
+      <div class="partial-item ${isOverridden?'overridden':''} ${tipText?'has-tooltip':''}" id="card_${esc(oid)}">
+        ${tipText ? `<div class="tip">${esc(tipText)}</div>` : ''}
         <div class="partial-header">
           <span class="partial-name">${esc(t.name)}</span>
           <span class="partial-badge ${badgeClass}">${esc(badgeLabel)}</span>
@@ -591,6 +601,45 @@ function buildTrendHTML(runs) {
     </div>`;
 }
 
+function renderAllRuns(runs) {
+  // Aggregate all tests across all filtered runs, deduped by test id — most recent run wins
+  const seen = new Map();
+  [...runs].forEach(r => {
+    (r.tests||[]).forEach(t => { if (t.id) seen.set(t.id, {t, r}); });
+  });
+  const all = [...seen.values()];
+  const total   = all.length;
+  const passed  = all.filter(({t})=>t.status==='PASS').length;
+  const partial = all.filter(({t})=>t.status==='WARN').length;
+  const failed  = all.filter(({t})=>t.status==='FAIL').length;
+  const errored = all.filter(({t})=>t.status==='ERROR').length;
+  const passRate = total ? Math.min(100, Math.round((passed+partial)/total*100)) : 0;
+
+  const failCards = all.filter(({t})=>t.status==='FAIL'||t.status==='ERROR').map(({t,r})=>{
+    const tip = [t.summary, t.notes, t.criteria_failed].filter(Boolean).join(' · ');
+    return `<div class="partial-item" style="position:relative">
+      <div class="partial-header">
+        <span class="partial-name">${esc(t.name)}</span>
+        <span class="partial-badge">${esc(t.status)}</span>
+        <span style="font-size:10px;color:var(--text-light);margin-left:8px">[${esc(r.environment||'prod')} · ${esc(r.date||'')}]</span>
+      </div>
+      ${tip ? `<div class="partial-footer"><span style="font-size:11px;color:var(--text-mid)">${esc(tip)}</span></div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('main').innerHTML = `
+    <div class="section-label">All Runs — Aggregated (${runs.length} run${runs.length!==1?'s':''})</div>
+    <div class="summary-card">Showing latest result per test across all filtered runs · ${total} unique tests · Pass rate <strong>${passRate}%</strong></div>
+    <div class="section-label">Test Results</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Pass Rate</div><div class="kpi-num">${passRate}<span class="unit">%</span></div><span class="chip green">${passed+partial} of ${total} passing</span></div>
+      <div class="kpi"><div class="kpi-label">Tests</div><div class="kpi-num">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">Failing</div><div class="kpi-num">${failed+errored}</div></div>
+      <div class="kpi"><div class="kpi-label">Partials</div><div class="kpi-num">${partial}</div></div>
+    </div>
+    ${failCards ? `<div class="section-label">Failing Tests</div><div class="fail-list">${failCards}</div>` : '<div class="summary-card">All tests passing across selected runs ✓</div>'}`;
+}
+
 function toggleOverride(testId, overrideKey) {
   let overrides = {};
   try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
@@ -628,17 +677,19 @@ function bindNav() {
     btn.classList.add('active'); activeType=btn.dataset.type; currentRun=null; render();
   }));
   document.getElementById('run-select').addEventListener('change', e => {
-    currentRun = filteredRuns()[parseInt(e.target.value,10)]; render();
+    if (e.target.value === 'all') { showAllRuns = true; currentRun = null; }
+    else { showAllRuns = false; currentRun = filteredRuns()[parseInt(e.target.value,10)]; }
+    render();
   });
   document.getElementById('date-from').addEventListener('change', e => { dateFrom=e.target.value; currentRun=null; render(); });
   document.getElementById('date-to').addEventListener('change',   e => { dateTo  =e.target.value; currentRun=null; render(); });
 }
 
 function clearDates() {
-  dateFrom=''; dateTo='';
+  dateFrom=''; dateTo=''; showAllRuns=false; currentRun=null;
   document.getElementById('date-from').value='';
   document.getElementById('date-to').value='';
-  currentRun=null; render();
+  render();
 }
 
 async function init() {
