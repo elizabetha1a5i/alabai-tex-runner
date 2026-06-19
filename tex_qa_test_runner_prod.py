@@ -2030,32 +2030,27 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
     results = []
 
     async with async_playwright() as pw:
-        ctx_path = os.path.expanduser("~/.tex_qa_browser_prod")
-        os.makedirs(ctx_path, exist_ok=True)
-        # Use a desktop viewport — weberranch.com widget is designed for desktop
-        browser = await pw.chromium.launch_persistent_context(
-            ctx_path, headless=True, viewport={"width": 1440, "height": 900}
-        )
-        page = browser.pages[0] if browser.pages else await browser.new_page()
-
-        print(f"\n🌐 Opening: {BASE_URL}")
-        await page.goto(BASE_URL)
-        await page.wait_for_load_state("load")
-        await page.wait_for_timeout(5000)
+        # Launch a plain browser (no persistent profile) so no cookies, localStorage
+        # or session data ever carry over between tests or CI runs.
+        browser = await pw.chromium.launch(headless=True)
 
         for idx, test_case in enumerate(tests_to_run, 1):
             print(f"\n[{idx}/{len(tests_to_run)}]", end="")
+            # Fresh context per test — Tex sees a brand-new user every time
+            context = await browser.new_context(viewport={"width": 1440, "height": 900})
+            page = await context.new_page()
+
+            print(f"\n🌐 Opening: {BASE_URL}")
+            await page.goto(BASE_URL)
+            await page.wait_for_load_state("load")
+            await page.wait_for_timeout(5000)
+
             cat = test_case["category"]
             r = await run_test(test_case, page, drive_service, folder_id,
                                prompt_cache.get(cat), approved_urls, recipes, brand_facts)
             results.append(r)
 
-            # Reload page between tests so widget starts fresh each time
-            if idx < len(tests_to_run):
-                print("\n  🔄 Reloading page for next test...")
-                await page.goto(BASE_URL)
-                await page.wait_for_load_state("load")
-                await page.wait_for_timeout(3000)
+            await context.close()
 
         print("\n⏹️  Closing browser...")
         await browser.close()
