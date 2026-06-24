@@ -29,7 +29,7 @@ from prompt_loader import load_prompts_for_category, format_rules_for_prompt
 # Browser interaction functions are duplicated below from prod runner.
 
 ENVIRONMENTS = {
-    "production": "https://weberranch.com",
+    "production": "https://weber-gpt-serverless.vercel.app/",
     "staging":    None,  # set STAGING_URL env var
 }
 
