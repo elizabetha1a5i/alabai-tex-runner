@@ -28,7 +28,7 @@ ENVIRONMENTS = {
 
 CUSTOM_ENVS_FILE = "custom_envs.json"
 DRIVE_FOLDER_ID = "1Due-NzuPfFZsmZF1Rcgu8pgSgE-Cl4Uu"
-SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"]
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE = "token.json"
 RESPONSE_WAIT = 8000
