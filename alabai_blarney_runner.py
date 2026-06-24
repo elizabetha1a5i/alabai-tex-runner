@@ -21,8 +21,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import pickle
-
 ENVIRONMENTS = {
     "UAT": "https://jlp.blarney.io/samsung?mode=testing",
     "STAGING": "https://blarney-sjlp.apps.grieve.dev",
@@ -32,7 +30,7 @@ CUSTOM_ENVS_FILE = "custom_envs.json"
 DRIVE_FOLDER_ID = "1Due-NzuPfFZsmZF1Rcgu8pgSgE-Cl4Uu"
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 CREDENTIALS_FILE = "credentials.json"
-TOKEN_FILE = "token.pickle"
+TOKEN_FILE = "token.json"
 RESPONSE_WAIT = 8000
 STEP_DELAY = 2000
 
@@ -99,16 +97,15 @@ def select_environment():
 def get_drive_service():
     creds = None
     if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "rb") as f:
-            creds = pickle.load(f)
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+        with open(TOKEN_FILE, "w") as f:
+            f.write(creds.to_json())
     return build("drive", "v3", credentials=creds)
 
 def create_drive_folder(service, name, parent_id):

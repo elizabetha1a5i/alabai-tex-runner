@@ -33,7 +33,7 @@ jobs:
       - name: Write Google credentials
         run: |
           echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
+          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
 
       - name: Install xvfb
         run: sudo apt-get install -y xvfb
