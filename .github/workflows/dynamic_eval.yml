@@ -1,0 +1,53 @@
+name: Dynamic Eval — MSE Methodology (Phase 1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+      limit:
+        description: "Number of tests to run (blank = all)"
+        required: false
+        default: ""
+
+jobs:
+  dynamic-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright google-genai google-auth google-auth-oauthlib google-api-python-client
+          playwright install chromium --with-deps
+
+      - name: Run dynamic evaluation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          LIMIT_ARG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          fi
+          python tex_dynamic_eval_runner.py --env ${{ github.event.inputs.environment }} $LIMIT_ARG
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-eval-results
+          path: tex_dynamic_results.json
+          retention-days: 30
