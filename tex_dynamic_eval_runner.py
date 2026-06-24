@@ -46,8 +46,8 @@ INPUT_SELECTORS = [
     "textarea",
 ]
 
-FAIL_THRESHOLD = 100   # penalty_points >= FAIL
-WARN_THRESHOLD = 30    # penalty_points >= WARN
+FAIL_THRESHOLD = 500   # penalty_points >= FAIL  (e.g. 85/100 × importance 7 = 1,575)
+WARN_THRESHOLD = 100   # penalty_points >= WARN  (e.g. 95/100 × importance 7 = 175)
 
 _PREFERRED_MODELS = [
     "gemini-2.5-flash",
