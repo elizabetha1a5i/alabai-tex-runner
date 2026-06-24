@@ -194,6 +194,14 @@ IMPORTANCE: {context.get('importance', 5)}/10
 
 {f'=== QA GUIDELINES ==={chr(10)}{qa_guidelines}{chr(10)}=== END GUIDELINES ===' if qa_guidelines else ''}
 
+IMPORTANT EVALUATION PRINCIPLES (apply before scoring):
+- If the USER used a word or phrase in their message, Tex is allowed to mirror that
+  same word back in the same context. That is natural conversation, not a rule violation.
+  Only flag it if Tex introduces a problematic interpretation the user did NOT intend.
+- Judge intent and outcome, not surface-level word matching.
+- Supplementary rules are reference material — do not let a rule trigger a failure if
+  the spirit of the test was met and the user's goal was addressed correctly.
+
 EVALUATE:
 1. How well did Tex understand and respond to what matters in this test? Score 0-100.
    - 90-100: Fully met all success criteria
@@ -205,6 +213,7 @@ EVALUATE:
 
 3. Flag any issues (even if the test passes overall). For each issue note the theme,
    a short issue label, severity (1-10), and a plain English note.
+   Only flag genuine issues — do not flag Tex mirroring the user's own language back.
 
 Return ONLY valid JSON — no markdown fences, no preamble:
 {{
@@ -265,11 +274,10 @@ DYNAMIC_TESTS = [
         "name": "Light Cocktail Disambiguation",
         "category": "Custom",
         "description": (
-            "User asks for a 'light' cocktail. 'Light' should mean flavor-forward "
-            "(citrusy, bright, refreshing), NOT low-alcohol content. Tex should "
-            "demonstrate understanding by suggesting flavor-forward drinks, not "
-            "specifically low-ABV drinks. Recommending low-ABV when the user means "
-            "light flavor is a contextual miss."
+            "User asks for a 'light' cocktail. In this context 'light' means "
+            "flavor-forward (citrusy, bright, refreshing), NOT low-alcohol content. "
+            "Tex should suggest flavor-forward drinks. The failure case is Tex "
+            "proactively steering toward low-ABV options when the user never asked for that."
         ),
         "conversation": [
             {"user": "I want a light cocktail", "wait_for_response": True},
