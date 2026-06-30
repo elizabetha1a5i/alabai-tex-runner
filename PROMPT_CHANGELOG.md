@@ -5,6 +5,42 @@ Format: date · file(s) changed · what changed and why.
 
 ---
 
+## 2026-06-30 — Boots 'N Beats knowledge added to Airtable
+
+**What changed:**
+Added Boots 'N Beats partnership knowledge to the Airtable knowledge base. No prompt files changed — this is picked up automatically via knowledge search.
+
+**Knowledge added:**
+Weber Ranch Vodka has partnered with Boots 'N Beats, a live Country-EDM touring concert series. 2026 shows across Chicago, Fort Worth, New York City, Los Angeles, Phoenix, and Miami. Summer dates confirmed: Phoenix (Aug 14), Fort Worth (Aug 21), Chicago (Aug 28). Fall dates (NYC, LA, Miami) to be announced.
+
+**Trigger behaviour:**
+Fires when a user asks about Boots 'N Beats, Weber Ranch events, or upcoming shows.
+
+---
+
+## 2026-06-18 — Pour Tour knowledge added
+
+**Files changed:**
+- `shared/core-rules.md`
+- `shared/url-formatting.md`
+
+**What changed:**
+Added Pour Tour information to core rules so Tex can describe and link to it from any conversation.
+
+**Why:**
+Tex had no knowledge of the Pour Tour and no way to reference it when users asked about finding Weber Ranch bars or which cities are on the tour.
+
+**Content added:**
+Weber Ranch runs a Pour Tour — a city-by-city guide to the best bars serving Weber Ranch cocktails, with hand-picked spots across New York, Dallas, Austin, Las Vegas, Orange County, Los Angeles, and Miami. Tex must share the Pour Tour link when asked and never invent specific bar names or addresses.
+
+**Link added:**
+- Pour Tour: https://www.weberranch.com/pour-tour
+
+**Trigger behaviour:**
+Fires when a user asks about the Pour Tour, where to find bars serving Weber Ranch, or which cities are covered.
+
+---
+
 ## 2026-06-18 — Music streaming links added
 
 **Files changed:**
