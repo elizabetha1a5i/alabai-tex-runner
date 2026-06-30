@@ -601,9 +601,23 @@ def main():
     parser = argparse.ArgumentParser(description="Tex Dynamic Evaluation Runner")
     parser.add_argument("--env", default="production", choices=["production", "staging"])
     parser.add_argument("--limit", type=int, default=None, help="Run only first N tests")
+    parser.add_argument("--custom-name", default=None, help="Custom test name")
+    parser.add_argument("--custom-description", default=None, help="What Tex should do / what counts as pass or fail")
+    parser.add_argument("--custom-message", action="append", dest="custom_messages",
+                        help="User message turn (repeat flag for multi-turn)")
     args = parser.parse_args()
 
-    asyncio.run(run_all(DYNAMIC_TESTS, args.env, args.limit))
+    if args.custom_name and args.custom_description and args.custom_messages:
+        custom_test = {
+            "test_id": "CUSTOM-01",
+            "name": args.custom_name,
+            "category": "Custom",
+            "description": args.custom_description,
+            "conversation": [{"user": m, "wait_for_response": True} for m in args.custom_messages],
+        }
+        asyncio.run(run_all([custom_test], args.env, None))
+    else:
+        asyncio.run(run_all(DYNAMIC_TESTS, args.env, args.limit))
 
 
 if __name__ == "__main__":

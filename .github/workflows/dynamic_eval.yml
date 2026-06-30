@@ -12,7 +12,19 @@ on:
           - production
           - staging
       limit:
-        description: "Number of tests to run (blank = all)"
+        description: "Number of tests to run (blank = all, ignored if custom test is set)"
+        required: false
+        default: ""
+      custom_name:
+        description: "Custom test — name (e.g. Pour Tour Austin)"
+        required: false
+        default: ""
+      custom_description:
+        description: "Custom test — what should Tex do? What counts as pass or fail?"
+        required: false
+        default: ""
+      custom_message:
+        description: "Custom test — what the user says to Tex (one message; for multi-turn separate with | e.g. Hello|Tell me more)"
         required: false
         default: ""
 
@@ -38,11 +50,29 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           STAGING_URL: ${{ secrets.STAGING_URL }}
         run: |
-          LIMIT_ARG=""
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          CUSTOM_NAME="${{ github.event.inputs.custom_name }}"
+          CUSTOM_DESC="${{ github.event.inputs.custom_description }}"
+          CUSTOM_MSG="${{ github.event.inputs.custom_message }}"
+
+          if [ -n "$CUSTOM_NAME" ] && [ -n "$CUSTOM_DESC" ] && [ -n "$CUSTOM_MSG" ]; then
+            # Build --custom-message flags, splitting on | for multi-turn
+            MSG_ARGS=""
+            IFS='|' read -ra TURNS <<< "$CUSTOM_MSG"
+            for turn in "${TURNS[@]}"; do
+              MSG_ARGS="$MSG_ARGS --custom-message \"$turn\""
+            done
+            eval python tex_dynamic_eval_runner.py \
+              --env ${{ github.event.inputs.environment }} \
+              --custom-name "$CUSTOM_NAME" \
+              --custom-description "$CUSTOM_DESC" \
+              $MSG_ARGS
+          else
+            LIMIT_ARG=""
+            if [ -n "${{ github.event.inputs.limit }}" ]; then
+              LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+            fi
+            python tex_dynamic_eval_runner.py --env ${{ github.event.inputs.environment }} $LIMIT_ARG
           fi
-          python tex_dynamic_eval_runner.py --env ${{ github.event.inputs.environment }} $LIMIT_ARG
 
       - name: Upload results
         if: always()
