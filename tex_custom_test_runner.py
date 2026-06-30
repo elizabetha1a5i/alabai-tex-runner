@@ -150,6 +150,11 @@ def get_google_services():
         if not os.path.exists(CREDENTIALS_FILE):
             print("\n[FAIL] credentials.json not found!")
             return None, None
+        import sys
+        if not sys.stdin.isatty():
+            print("\n[FAIL] No valid Google token found and cannot run OAuth flow in CI.")
+            print("       Make sure GOOGLE_TOKEN_JSON secret is set and contains a valid refresh_token.")
+            return None, None
         flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
         creds = flow.run_local_server(port=0)
         with open("token.json", "w") as f:
