@@ -597,23 +597,56 @@ async def run_all(tests: list, env: str, limit: int | None):
     return results
 
 
+def _generate_user_messages(description: str, client, model: str) -> list:
+    """Ask Gemini to write realistic user message(s) that would trigger the scenario in description."""
+    prompt = f"""You are helping write a chatbot test. Based on the test description below, write
+the user message(s) a real customer would send to trigger this scenario.
+
+Test description: {description}
+
+Rules:
+- Write natural, conversational messages a real person would type
+- If one message is enough, return one. If the scenario needs follow-up turns, return more.
+- Maximum 3 turns.
+
+Return ONLY valid JSON — no markdown fences, no preamble:
+{{"messages": ["first user message", "optional second message"]}}"""
+
+    try:
+        response = client.models.generate_content(model=model, contents=prompt)
+        import re
+        raw = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
+        raw = re.sub(r"\s*```$", "", raw)
+        data = json.loads(raw)
+        return data.get("messages", [])
+    except Exception as e:
+        print(f"⚠️  Could not generate user messages: {e}")
+        return []
+
+
 def main():
     parser = argparse.ArgumentParser(description="Tex Dynamic Evaluation Runner")
     parser.add_argument("--env", default="production", choices=["production", "staging"])
     parser.add_argument("--limit", type=int, default=None, help="Run only first N tests")
     parser.add_argument("--custom-name", default=None, help="Custom test name")
     parser.add_argument("--custom-description", default=None, help="What Tex should do / what counts as pass or fail")
-    parser.add_argument("--custom-message", action="append", dest="custom_messages",
-                        help="User message turn (repeat flag for multi-turn)")
     args = parser.parse_args()
 
-    if args.custom_name and args.custom_description and args.custom_messages:
+    if args.custom_name and args.custom_description:
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        model  = _pick_gemini_model(client)
+        print(f"🤖 Generating user messages from description...")
+        messages = _generate_user_messages(args.custom_description, client, model)
+        if not messages:
+            print("❌ Could not generate user messages from description. Aborting.")
+            return
+        print(f"   → {messages}")
         custom_test = {
             "test_id": "CUSTOM-01",
             "name": args.custom_name,
             "category": "Custom",
             "description": args.custom_description,
-            "conversation": [{"user": m, "wait_for_response": True} for m in args.custom_messages],
+            "conversation": [{"user": m, "wait_for_response": True} for m in messages],
         }
         asyncio.run(run_all([custom_test], args.env, None))
     else:
