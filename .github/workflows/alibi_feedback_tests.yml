@@ -26,17 +26,13 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-      - name: Write Google credentials
-        run: |
-          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
-
       - name: Install xvfb
         run: sudo apt-get install -y xvfb
 
       - name: Run Alibi Feedback Tests
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           HEADLESS: "true"
           TEST_ENVIRONMENT: staging
         run: |

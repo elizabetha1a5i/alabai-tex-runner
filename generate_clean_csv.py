@@ -7,25 +7,30 @@ Uploads both to Google Drive with public read access.
 """
 
 import csv
+import json
 import os
-import pickle
 from datetime import datetime
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from google.auth.transport.requests import Request
 
 SPREADSHEET_ID  = "1x0WAJ_1v5eTamaFSNgkkrNYurxEQTfbU3TdWkqCmXw0"
 QA_LOG_TAB      = "🧪 QA Test Log"
 DRIVE_FOLDER_ID = "1RcWyUsG3FrEkSpLkeqkVZsWVPpF6vUOy"
-TOKEN_FILE      = "token.pickle"
 CLEAN_FILE      = "tex_clean.csv"
 MASTER_FILE     = "tex_master.csv"
+SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"]
 
 def get_services():
-    with open(TOKEN_FILE, "rb") as f:
-        creds = pickle.load(f)
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        info = json.loads(sa_json)
+    elif os.path.exists("service_account.json"):
+        with open("service_account.json") as f:
+            info = json.load(f)
+    else:
+        raise RuntimeError("No Google credentials found. Set GOOGLE_SERVICE_ACCOUNT_JSON or provide service_account.json")
+    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
     sheets = build("sheets", "v4", credentials=creds)
     drive  = build("drive",  "v3", credentials=creds)
     return sheets, drive

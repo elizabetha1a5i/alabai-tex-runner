@@ -30,12 +30,9 @@ jobs:
         run: |
           pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-      - name: Write Google credentials
-        run: |
-          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_B64 }}' | base64 -d > token.pickle
-
       - name: Generate and upload CSVs
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: python generate_clean_csv.py
 
       - name: Update dashboard with file IDs

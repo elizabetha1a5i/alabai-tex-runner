@@ -30,14 +30,10 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-      - name: Write Google credentials
-        run: |
-          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
-
       - name: Run Tex QA tests (production)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
           LIMIT="${{ github.event.inputs.limit }}"
           if [ -n "$LIMIT" ]; then

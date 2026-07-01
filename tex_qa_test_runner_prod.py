@@ -18,15 +18,12 @@ import json
 import os
 import re
 import time
-import pickle
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -58,8 +55,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
-CREDENTIALS_FILE = "credentials.json"
-TOKEN_FILE       = "token.pickle"
 
 ENVIRONMENTS = {
     "production_vercel": "https://weber-gpt-serverless.vercel.app/",
@@ -188,58 +183,18 @@ CATEGORY_TO_RESPONSE_TYPES = {
 
 def get_google_services():
     import json as _json
-    creds = None
 
-    # Prefer token.json (plain JSON — works in CI and locally).
-    # Fall back to token.pickle for backwards compatibility.
-    if os.path.exists("token.json"):
-        try:
-            with open("token.json") as f:
-                raw = f.read().strip()
-            if not raw:
-                raise ValueError("token.json is empty")
-            d = _json.loads(raw)
-        except Exception as e:
-            print(f"  ⚠️  token.json unreadable ({e}) — will try OAuth flow")
-            d = {}
-        if d.get("refresh_token"):
-            creds = Credentials(
-                token=d.get("token"),
-                refresh_token=d.get("refresh_token"),
-                token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
-                client_id=d.get("client_id"),
-                client_secret=d.get("client_secret"),
-                scopes=d.get("scopes"),
-            )
-    elif os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "rb") as f:
-            creds = pickle.load(f)
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        info = _json.loads(sa_json)
+    elif os.path.exists("service_account.json"):
+        with open("service_account.json") as f:
+            info = _json.load(f)
+    else:
+        print("\n❌ No Google credentials found. Set GOOGLE_SERVICE_ACCOUNT_JSON or provide service_account.json")
+        return None, None
 
-    if creds and creds.refresh_token:
-        # Always force a refresh — access token expires every hour,
-        # refresh token does not expire.
-        try:
-            creds.refresh(Request())
-        except Exception as e:
-            print(f"  ⚠️  Token refresh failed: {e}")
-            creds = None
-
-    if not creds:
-        if not os.path.exists(CREDENTIALS_FILE):
-            print("\n❌ credentials.json not found and token refresh failed!")
-            return None, None
-        flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-        creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as f:
-            _json.dump({
-                "token":         creds.token,
-                "refresh_token": creds.refresh_token,
-                "token_uri":     creds.token_uri,
-                "client_id":     creds.client_id,
-                "client_secret": creds.client_secret,
-                "scopes":        list(creds.scopes),
-            }, f)
-
+    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
     return build("drive", "v3", credentials=creds), build("sheets", "v4", credentials=creds)
 
 

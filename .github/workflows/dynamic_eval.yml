@@ -11,16 +11,25 @@ on:
         options:
           - production
           - staging
+      mode:
+        description: "What to run"
+        required: true
+        default: "standard"
+        type: choice
+        options:
+          - standard
+          - custom
+          - both
       limit:
-        description: "Number of tests to run (blank = all, ignored if custom test is set)"
+        description: "Number of standard tests to run (blank = all)"
         required: false
         default: ""
       custom_name:
-        description: "Custom test — name (e.g. Pour Tour Austin)"
+        description: "Custom test — name (e.g. Pour Tour Austin) — required for custom/both modes"
         required: false
         default: ""
       custom_description:
-        description: "Custom test — what should Tex do? What counts as pass or fail? (Gemini will generate the user messages)"
+        description: "Custom test — what should Tex do? What counts as pass or fail? — required for custom/both modes"
         required: false
         default: ""
 
@@ -45,20 +54,28 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          MODE="${{ github.event.inputs.mode }}"
+          ENV="${{ github.event.inputs.environment }}"
           CUSTOM_NAME="${{ github.event.inputs.custom_name }}"
           CUSTOM_DESC="${{ github.event.inputs.custom_description }}"
+          LIMIT_ARG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          fi
 
-          if [ -n "$CUSTOM_NAME" ] && [ -n "$CUSTOM_DESC" ]; then
-            python tex_dynamic_eval_runner.py \
-              --env ${{ github.event.inputs.environment }} \
+          if [ "$MODE" = "standard" ]; then
+            python tex_dynamic_eval_runner.py --env $ENV $LIMIT_ARG
+
+          elif [ "$MODE" = "custom" ]; then
+            python tex_dynamic_eval_runner.py --env $ENV \
               --custom-name "$CUSTOM_NAME" \
               --custom-description "$CUSTOM_DESC"
-          else
-            LIMIT_ARG=""
-            if [ -n "${{ github.event.inputs.limit }}" ]; then
-              LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
-            fi
-            python tex_dynamic_eval_runner.py --env ${{ github.event.inputs.environment }} $LIMIT_ARG
+
+          elif [ "$MODE" = "both" ]; then
+            python tex_dynamic_eval_runner.py --env $ENV $LIMIT_ARG
+            python tex_dynamic_eval_runner.py --env $ENV \
+              --custom-name "$CUSTOM_NAME" \
+              --custom-description "$CUSTOM_DESC"
           fi
 
       - name: Upload results
