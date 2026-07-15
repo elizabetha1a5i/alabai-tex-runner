@@ -82,6 +82,22 @@ jobs:
               --custom-description "${CUSTOM_DESC}"
           fi
 
+      - name: Push results to eval dashboard
+        if: always() && env.EVAL_DASHBOARD_URL != ''
+        env:
+          EVAL_DASHBOARD_URL: ${{ secrets.EVAL_DASHBOARD_URL }}
+          EVAL_DASHBOARD_KEY: ${{ secrets.EVAL_DASHBOARD_KEY }}
+        continue-on-error: true
+        run: |
+          if [ -f tex_dynamic_results.json ]; then
+            curl -sf -X POST "${EVAL_DASHBOARD_URL}/api/eval-results" \
+              -H "Authorization: Bearer ${EVAL_DASHBOARD_KEY}" \
+              -H "Content-Type: application/json" \
+              --data-binary @tex_dynamic_results.json
+          else
+            echo "No tex_dynamic_results.json found — skipping dashboard push."
+          fi
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
