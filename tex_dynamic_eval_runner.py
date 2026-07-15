@@ -484,6 +484,7 @@ async def run_dynamic_test(test_case: dict, page, prompt_content: str,
         "issues_flagged": [],
         "response_time": 0,
         "message_count": 0,
+        "conversation_text": "",
     }
 
     try:
@@ -494,6 +495,7 @@ async def run_dynamic_test(test_case: dict, page, prompt_content: str,
         )
         result["response_time"] = round(elapsed, 2)
         result["message_count"] = msg_count
+        result["conversation_text"] = conv_text
 
         if not conv_text.strip():
             result["status"] = "ERROR"
