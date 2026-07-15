@@ -53,29 +53,33 @@ jobs:
       - name: Run dynamic evaluation
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          MODE: ${{ github.event.inputs.mode }}
+          ENV: ${{ github.event.inputs.environment }}
+          CUSTOM_NAME: ${{ github.event.inputs.custom_name }}
+          CUSTOM_DESC: ${{ github.event.inputs.custom_description }}
+          LIMIT: ${{ github.event.inputs.limit }}
         run: |
-          MODE="${{ github.event.inputs.mode }}"
-          ENV="${{ github.event.inputs.environment }}"
-          CUSTOM_NAME="${{ github.event.inputs.custom_name }}"
-          CUSTOM_DESC="${{ github.event.inputs.custom_description }}"
+          set -euo pipefail
+
           LIMIT_ARG=""
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          if [ -n "${LIMIT:-}" ]; then
+            LIMIT_ARG="--limit ${LIMIT}"
           fi
 
-          if [ "$MODE" = "standard" ]; then
-            python tex_dynamic_eval_runner.py --env $ENV $LIMIT_ARG
+          if [ "${MODE}" = "standard" ]; then
+            python tex_dynamic_eval_runner.py --env "${ENV}" ${LIMIT_ARG}
 
-          elif [ "$MODE" = "custom" ]; then
-            python tex_dynamic_eval_runner.py --env $ENV \
-              --custom-name "$CUSTOM_NAME" \
-              --custom-description "$CUSTOM_DESC"
+          elif [ "${MODE}" = "custom" ]; then
+            python tex_dynamic_eval_runner.py --env "${ENV}" \
+              --custom-name "${CUSTOM_NAME}" \
+              --custom-description "${CUSTOM_DESC}"
 
-          elif [ "$MODE" = "both" ]; then
-            python tex_dynamic_eval_runner.py --env $ENV $LIMIT_ARG
-            python tex_dynamic_eval_runner.py --env $ENV \
-              --custom-name "$CUSTOM_NAME" \
-              --custom-description "$CUSTOM_DESC"
+          elif [ "${MODE}" = "both" ]; then
+            python tex_dynamic_eval_runner.py --env "${ENV}" ${LIMIT_ARG}
+            python tex_dynamic_eval_runner.py --env "${ENV}" \
+              --custom-name "${CUSTOM_NAME}" \
+              --custom-description "${CUSTOM_DESC}"
           fi
 
       - name: Upload results
@@ -83,5 +87,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dynamic-eval-results
-          path: tex_dynamic_results.json
+          path: |
+            tex_dynamic_results.json
+            tex_dynamic_results.csv
           retention-days: 30
