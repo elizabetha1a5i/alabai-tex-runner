@@ -681,17 +681,31 @@ async def _get_all_text(page) -> str:
 
 
 async def _wait_for_new_response(page, prev_text: str, timeout_s: int = 45) -> tuple[float, str]:
-    """Poll until new text appears. Returns (elapsed_seconds, new_full_text)."""
+    """Poll until new text appears and then stops growing (debounce), to
+    avoid cutting off multi-bubble SMS-style responses that arrive with
+    realistic delay between bubbles. Returns (elapsed_seconds, new_full_text)."""
     start = time.time()
+    last_text = prev_text
+    stable_polls = 0
+    grew_at_least_once = False
+    STABLE_POLLS_REQUIRED = 3  # ~2.4s of no growth after growth started
+
     while time.time() - start < timeout_s:
         await page.wait_for_timeout(800)
         current = await _get_all_text(page)
-        if current != prev_text and len(current) > len(prev_text) + 10:
-            # Wait a moment for streaming to finish
-            await page.wait_for_timeout(1500)
-            final = await _get_all_text(page)
-            return time.time() - start, final
-    return time.time() - start, prev_text
+
+        if current != last_text and len(current) > len(prev_text) + 10:
+            grew_at_least_once = True
+            stable_polls = 0
+        elif grew_at_least_once:
+            stable_polls += 1
+
+        last_text = current
+
+        if grew_at_least_once and stable_polls >= STABLE_POLLS_REQUIRED:
+            return time.time() - start, current
+
+    return time.time() - start, last_text
 
 
 async def run_conversation_dynamic(page, test_case: dict, base_url: str) -> tuple[str, float, int]:
