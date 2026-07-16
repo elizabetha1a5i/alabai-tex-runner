@@ -1005,6 +1005,10 @@ def main():
         "--custom-description", default=None,
         help="What Tex should do / what counts as pass or fail. Separate multiple tests with '|||'",
     )
+    parser.add_argument(
+        "--custom-repeat", type=int, default=1,
+        help="Run each custom test this many times (e.g. to check consistency across repeated trials)",
+    )
     args = parser.parse_args()
 
     if args.custom_name and args.custom_description:
@@ -1018,24 +1022,29 @@ def main():
             )
             return
 
+        repeat = max(1, args.custom_repeat)
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         model  = _pick_gemini_model(client)
 
         custom_tests = []
-        for i, (name, description) in enumerate(zip(names, descriptions), start=1):
-            print(f"🤖 Generating user messages for '{name}'...")
-            messages = _generate_user_messages(description, client, model)
-            if not messages:
-                print(f"❌ Could not generate user messages for '{name}'. Skipping.")
-                continue
-            print(f"   → {messages}")
-            custom_tests.append({
-                "test_id": f"CUSTOM-{i:02d}",
-                "name": name,
-                "category": "Custom",
-                "description": description,
-                "conversation": [{"user": m, "wait_for_response": True} for m in messages],
-            })
+        counter = 0
+        for name, description in zip(names, descriptions):
+            for r in range(1, repeat + 1):
+                counter += 1
+                label = f"{name} (run {r}/{repeat})" if repeat > 1 else name
+                print(f"🤖 Generating user messages for '{label}'...")
+                messages = _generate_user_messages(description, client, model)
+                if not messages:
+                    print(f"❌ Could not generate user messages for '{label}'. Skipping.")
+                    continue
+                print(f"   → {messages}")
+                custom_tests.append({
+                    "test_id": f"CUSTOM-{counter:02d}",
+                    "name": label,
+                    "category": "Custom",
+                    "description": description,
+                    "conversation": [{"user": m, "wait_for_response": True} for m in messages],
+                })
 
         if not custom_tests:
             print("❌ No custom tests could be generated. Aborting.")
