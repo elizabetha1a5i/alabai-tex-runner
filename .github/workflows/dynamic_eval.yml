@@ -33,14 +33,14 @@ on:
         required: false
         default: ""
       custom_repeat:
-        description: "Run each custom test this many times, to check consistency across repeated trials (custom/both only, blank = 1)"
+        description: "Run each custom test this many times (~45s each, so 100 ≈ 75min — job timeout is 3hr). Custom/both only, blank = 1"
         required: false
         default: ""
 
 jobs:
   dynamic-eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
