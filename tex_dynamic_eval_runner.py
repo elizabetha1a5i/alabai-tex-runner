@@ -688,13 +688,14 @@ async def _wait_for_new_response(page, prev_text: str, timeout_s: int = 45) -> t
     last_text = prev_text
     stable_polls = 0
     grew_at_least_once = False
-    STABLE_POLLS_REQUIRED = 3  # ~2.4s of no growth after growth started
+    STABLE_POLLS_REQUIRED = 4  # ~3.2s of no growth after real content started
+    MIN_GROWTH_CHARS = 60  # ignore tiny growth from a typing indicator ("...")
 
     while time.time() - start < timeout_s:
         await page.wait_for_timeout(800)
         current = await _get_all_text(page)
 
-        if current != last_text and len(current) > len(prev_text) + 10:
+        if current != last_text and len(current) > len(prev_text) + MIN_GROWTH_CHARS:
             grew_at_least_once = True
             stable_polls = 0
         elif grew_at_least_once:
