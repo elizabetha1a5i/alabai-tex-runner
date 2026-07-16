@@ -997,27 +997,51 @@ def main():
     parser = argparse.ArgumentParser(description="Tex Dynamic Evaluation Runner")
     parser.add_argument("--env", default="production", choices=["production", "staging"])
     parser.add_argument("--limit", type=int, default=None, help="Run only first N tests")
-    parser.add_argument("--custom-name", default=None, help="Custom test name")
-    parser.add_argument("--custom-description", default=None, help="What Tex should do / what counts as pass or fail")
+    parser.add_argument(
+        "--custom-name", default=None,
+        help="Custom test name(s). Separate multiple tests with '|||' (must match --custom-description count)",
+    )
+    parser.add_argument(
+        "--custom-description", default=None,
+        help="What Tex should do / what counts as pass or fail. Separate multiple tests with '|||'",
+    )
     args = parser.parse_args()
 
     if args.custom_name and args.custom_description:
+        names = [n.strip() for n in args.custom_name.split("|||")]
+        descriptions = [d.strip() for d in args.custom_description.split("|||")]
+
+        if len(names) != len(descriptions):
+            print(
+                f"❌ Got {len(names)} custom name(s) but {len(descriptions)} description(s) "
+                f"— they must match 1:1 when using '|||' to separate multiple tests. Aborting."
+            )
+            return
+
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         model  = _pick_gemini_model(client)
-        print(f"🤖 Generating user messages from description...")
-        messages = _generate_user_messages(args.custom_description, client, model)
-        if not messages:
-            print("❌ Could not generate user messages from description. Aborting.")
+
+        custom_tests = []
+        for i, (name, description) in enumerate(zip(names, descriptions), start=1):
+            print(f"🤖 Generating user messages for '{name}'...")
+            messages = _generate_user_messages(description, client, model)
+            if not messages:
+                print(f"❌ Could not generate user messages for '{name}'. Skipping.")
+                continue
+            print(f"   → {messages}")
+            custom_tests.append({
+                "test_id": f"CUSTOM-{i:02d}",
+                "name": name,
+                "category": "Custom",
+                "description": description,
+                "conversation": [{"user": m, "wait_for_response": True} for m in messages],
+            })
+
+        if not custom_tests:
+            print("❌ No custom tests could be generated. Aborting.")
             return
-        print(f"   → {messages}")
-        custom_test = {
-            "test_id": "CUSTOM-01",
-            "name": args.custom_name,
-            "category": "Custom",
-            "description": args.custom_description,
-            "conversation": [{"user": m, "wait_for_response": True} for m in messages],
-        }
-        asyncio.run(run_all([custom_test], args.env, None))
+
+        asyncio.run(run_all(custom_tests, args.env, None))
     else:
         asyncio.run(run_all(DYNAMIC_TESTS, args.env, args.limit))
 

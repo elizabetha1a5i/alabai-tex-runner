@@ -25,11 +25,11 @@ on:
         required: false
         default: ""
       custom_name:
-        description: "Custom test — name (e.g. Pour Tour Austin) — required for custom/both modes"
+        description: "Custom test name(s), required for custom/both. For multiple tests separate with ||| (must match custom_description count 1:1)"
         required: false
         default: ""
       custom_description:
-        description: "Custom test — what should Tex do? What counts as pass or fail? — required for custom/both modes"
+        description: "What Tex should do / pass-fail criteria, required for custom/both. Separate multiple with ||| to match custom_name"
         required: false
         default: ""
 
