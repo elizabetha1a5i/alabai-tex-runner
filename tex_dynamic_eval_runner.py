@@ -69,8 +69,8 @@ RESULTS_COLUMNS = [
     "summary", "notes",
 ]
 
-FAIL_THRESHOLD = 500   # penalty_points >= FAIL  (e.g. 85/100 × importance 7 = 1,575)
-WARN_THRESHOLD = 100   # penalty_points >= WARN  (e.g. 95/100 × importance 7 = 175)
+PASS_SCORE_FLOOR = 90  # alignment_score >= this is always PASS, regardless of importance
+WARN_SCORE_FLOOR = 70  # alignment_score >= this (and < PASS_SCORE_FLOOR) is WARN; below is FAIL
 
 _PREFERRED_MODELS = [
     "gemini-2.5-flash",
@@ -391,19 +391,26 @@ Return ONLY valid JSON — no markdown fences, no preamble:
 
 def calculate_mse_penalty(alignment: int, importance: int) -> dict:
     """
-    MSE-style penalty: bigger misses hurt exponentially.
-    penalty = (100 - alignment)² × importance
-    FAIL >= FAIL_THRESHOLD (100), WARN >= WARN_THRESHOLD (30), else PASS.
+    Status is driven directly by the alignment score — a response that hit
+    all the main requirements should never FAIL just because the test was
+    flagged as important. Importance still scales penalty_points (used for
+    reporting/prioritization — e.g. sorting which near-misses matter most),
+    but it can no longer push a high-scoring response into a worse bucket.
+
+    alignment >= PASS_SCORE_FLOOR (90)                    -> PASS
+    WARN_SCORE_FLOOR (70) <= alignment < PASS_SCORE_FLOOR  -> WARN
+    alignment < WARN_SCORE_FLOOR                           -> FAIL
     """
-    deviation = 100 - max(0, min(100, alignment))
+    alignment = max(0, min(100, alignment))
+    deviation = 100 - alignment
     penalty_points = (deviation ** 2) * importance
 
-    if penalty_points >= FAIL_THRESHOLD:
-        status = "FAIL"
-    elif penalty_points >= WARN_THRESHOLD:
+    if alignment >= PASS_SCORE_FLOOR:
+        status = "PASS"
+    elif alignment >= WARN_SCORE_FLOOR:
         status = "WARN"
     else:
-        status = "PASS"
+        status = "FAIL"
 
     return {
         "penalty_points": penalty_points,
