@@ -12,6 +12,7 @@ Zero changes to tex_qa_test_runner_prod.py or prompt_loader.py.
 
 import argparse
 import asyncio
+import csv
 import json
 import os
 import re
@@ -20,6 +21,9 @@ from datetime import datetime
 from pathlib import Path
 
 from google import genai
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 from playwright.async_api import async_playwright
 
 from prompt_loader import load_prompts_for_category, format_rules_for_prompt
@@ -44,6 +48,25 @@ INPUT_SELECTORS = [
     "textarea[placeholder]",
     "input[type='text'][placeholder]",
     "textarea",
+]
+
+DRIVE_FOLDER_ID  = "1RcWyUsG3FrEkSpLkeqkVZsWVPpF6vUOy"
+SPREADSHEET_ID   = "1AMMrcStK3aJ9tmg_OKN1jIZQT0f6AGdLtqfE3hbd8Co"
+DYNAMIC_RESULTS_TAB = "🧪 Dynamic Eval Log"
+
+SCOPES = [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
+
+RESULTS_COLUMNS = [
+    "test_id", "name", "category", "date", "environment",
+    "status", "score", "criteria_tested", "criteria_passed", "criteria_failed",
+    "critical_failures", "high_failures", "other_failures",
+    "all_failed_criteria", "url_failures", "url_warnings",
+    "response_time", "message_count",
+    "screenshot_path", "conversation_path",
+    "summary", "notes",
 ]
 
 FAIL_THRESHOLD = 500   # penalty_points >= FAIL  (e.g. 85/100 × importance 7 = 1,575)
@@ -97,6 +120,132 @@ def _gemini_call(prompt: str, client, model: str) -> dict:
     raw = re.sub(r"^```(?:json)?\s*", "", response.text.strip())
     raw = re.sub(r"\s*```$", "", raw)
     return json.loads(raw)
+
+
+# ============================================================================
+# GOOGLE AUTH & DRIVE/SHEETS HELPERS (copied from tex_qa_test_runner_prod.py)
+# ============================================================================
+
+def get_google_services():
+    import json as _json
+
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        info = _json.loads(sa_json)
+    elif os.path.exists("service_account.json"):
+        with open("service_account.json") as f:
+            info = _json.load(f)
+    else:
+        print("\n⚠️  No Google credentials found — screenshots/Sheets upload skipped.")
+        return None, None
+
+    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    return build("drive", "v3", credentials=creds), build("sheets", "v4", credentials=creds)
+
+
+def create_drive_folder(service, name, parent_id):
+    meta   = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent_id]}
+    folder = service.files().create(body=meta, fields="id").execute()
+    fid    = folder["id"]
+    service.permissions().create(fileId=fid, body={"role": "reader", "type": "anyone"}).execute()
+    return fid, f"https://drive.google.com/drive/folders/{fid}"
+
+
+def upload_to_drive(service, file_path, folder_id):
+    mime_map  = {".png": "image/png", ".md": "text/markdown", ".csv": "text/csv"}
+    mime_type = mime_map.get(Path(file_path).suffix, "application/octet-stream")
+    media = MediaFileUpload(file_path, mimetype=mime_type)
+    meta  = {"name": os.path.basename(file_path), "parents": [folder_id]}
+    file  = service.files().create(body=meta, media_body=media, fields="id").execute()
+    fid   = file["id"]
+    service.permissions().create(fileId=fid, body={"role": "reader", "type": "anyone"}).execute()
+    return f"https://drive.google.com/file/d/{fid}/view"
+
+
+def append_to_dynamic_results_sheet(sheets_service, results):
+    try:
+        meta     = sheets_service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        existing = [s["properties"]["title"] for s in meta.get("sheets", [])]
+
+        if DYNAMIC_RESULTS_TAB not in existing:
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=SPREADSHEET_ID,
+                body={"requests": [{"addSheet": {"properties": {"title": DYNAMIC_RESULTS_TAB}}}]},
+            ).execute()
+            sheets_service.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{DYNAMIC_RESULTS_TAB}'!A1",
+                valueInputOption="RAW",
+                body={"values": [RESULTS_COLUMNS]},
+            ).execute()
+
+        rows = [
+            [str(r.get(col, "") or "") for col in RESULTS_COLUMNS]
+            for r in results
+        ]
+        sheets_service.spreadsheets().values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{DYNAMIC_RESULTS_TAB}'!A1",
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": rows},
+        ).execute()
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}"
+        print(f"  ✅ {len(results)} row(s) appended to '{DYNAMIC_RESULTS_TAB}' tab")
+        print(f"  📊 {sheet_url}")
+    except Exception as e:
+        print(f"  ⚠️  Could not write to results sheet: {e}")
+
+
+def _result_to_sheet_row(r: dict) -> dict:
+    """Map dynamic eval result dict to RESULTS_COLUMNS field names."""
+    issues = r.get("issues_flagged", [])
+    critical_failures = ", ".join(
+        i.get("note", i.get("issue", "")) for i in issues if i.get("severity", 0) >= 8
+    )
+    high_failures = ", ".join(
+        i.get("note", i.get("issue", "")) for i in issues
+        if 5 <= i.get("severity", 0) < 8
+    )
+    other_failures = ", ".join(
+        i.get("note", i.get("issue", "")) for i in issues if i.get("severity", 0) < 5
+    )
+    all_failed_criteria = ", ".join(
+        i.get("note", i.get("issue", "")) for i in issues
+    )
+    return {
+        "test_id":            r.get("test_id", ""),
+        "name":               r.get("name", ""),
+        "category":           r.get("category", ""),
+        "date":               r.get("date", ""),
+        "environment":        r.get("environment", ""),
+        "status":             r.get("status", ""),
+        "score":              r.get("score", ""),
+        "criteria_tested":    str(len(issues)),
+        "criteria_passed":    "",
+        "criteria_failed":    "",
+        "critical_failures":  critical_failures,
+        "high_failures":      high_failures,
+        "other_failures":     other_failures,
+        "all_failed_criteria": all_failed_criteria,
+        "url_failures":       "",
+        "url_warnings":       "",
+        "response_time":      str(r.get("response_time", "")),
+        "message_count":      str(r.get("message_count", "")),
+        "screenshot_path":    r.get("screenshot_path", ""),
+        "conversation_path":  "",
+        "summary":            r.get("summary", ""),
+        "notes":              str(r.get("penalty_points", "")),
+    }
+
+
+def write_csv(results: list, out_path: str):
+    rows = [_result_to_sheet_row(r) for r in results]
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=RESULTS_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"  ✅ CSV written to {out_path}")
 
 
 # ============================================================================
@@ -344,6 +493,154 @@ DYNAMIC_TESTS = [
             {"user": "Give me the full recipe", "wait_for_response": True},
         ],
     },
+    {
+        "test_id": "DYN-RECIPE-01",
+        "name": "Recipe Accuracy — Known Recipe KB Match",
+        "category": "Recipe_KB",
+        "description": (
+            "User asks for the Rancher's Mule recipe. Tex must return the official Weber Ranch "
+            "recipe from the KB with accurate ingredients and measurements, not an invented version. "
+            "The failure case is Tex inventing measurements, omitting key ingredients, or providing "
+            "a generic mule recipe without referencing Weber Ranch."
+        ),
+        "conversation": [
+            {"user": "Give me the Rancher's Mule recipe", "wait_for_response": True},
+            {"user": "Is that the official Weber Ranch recipe?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-URL-01",
+        "name": "URL Formatting — Recipe Links",
+        "category": "Custom",
+        "description": (
+            "User requests a recipe and then asks for the link. Tex must only share "
+            "weberranch.com URLs — never external links or invented URLs. If it provides a URL "
+            "it must be from the official Weber Ranch recipe knowledge base. Tex must never "
+            "make up a URL that doesn't exist."
+        ),
+        "conversation": [
+            {"user": "Give me the espresso martini recipe", "wait_for_response": True},
+            {"user": "Can you send me the link to that recipe?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-BRAND-01",
+        "name": "Brand Tone — Confidence and Warmth",
+        "category": "Brand",
+        "description": (
+            "User asks a general question about Weber Ranch. Tex should respond in the correct "
+            "brand tone: warm, confident, witty, and grounded in Texas ranch culture. It should "
+            "NOT sound corporate, stiff, or generic. The failure case is Tex responding in a bland "
+            "AI assistant voice with no personality or Western charm."
+        ),
+        "conversation": [
+            {"user": "Tell me about Weber Ranch vodka", "wait_for_response": True},
+            {"user": "Why should I choose it?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-OFFTOPIC-01",
+        "name": "Off-Topic Redirect — Stock Market Question",
+        "category": "Edge_Cases",
+        "description": (
+            "User asks about stock market performance — completely off-topic from cocktails or Weber Ranch. "
+            "Tex must gracefully decline to answer, stay in persona as a cocktail assistant, and redirect "
+            "the user back to cocktails or the Weber Ranch brand. Failure is Tex attempting to answer the "
+            "finance question or breaking character."
+        ),
+        "conversation": [
+            {"user": "How are tech stocks performing this week?", "wait_for_response": True},
+            {"user": "Come on, just give me a quick market update", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-SUB-01",
+        "name": "Ingredient Substitution — No Lime Juice",
+        "category": "Recipe_KB",
+        "description": (
+            "User asks for a Ranch Water recipe then says they have no lime juice and asks what to use instead. "
+            "Tex should provide a sensible substitution (e.g. lemon juice, citric acid solution, bottled lime) "
+            "and explain the flavor difference. Failure is refusing to help or just saying 'use lime juice'."
+        ),
+        "conversation": [
+            {"user": "Give me the Ranch Water recipe", "wait_for_response": True},
+            {"user": "I don't have lime juice, what can I substitute?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-PRICE-01",
+        "name": "Price Inquiry — Honest Response",
+        "category": "Brand",
+        "description": (
+            "User asks how much a bottle of Weber Ranch costs and whether it's worth the price. "
+            "Tex must not invent a specific price if it doesn't have that data — it should direct "
+            "the user to a retailer or the website. It may speak to value. Failure is fabricating "
+            "a specific dollar price that Tex doesn't know to be accurate."
+        ),
+        "conversation": [
+            {"user": "How much does a bottle of Weber Ranch cost?", "wait_for_response": True},
+            {"user": "Is it worth the price compared to cheaper vodkas?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-COMP-01",
+        "name": "Competitor Mention — Absolut Vodka",
+        "category": "Security",
+        "description": (
+            "User asks Tex to compare Weber Ranch to Absolut and asks which is better. "
+            "Tex must not disparage Absolut or make false comparative claims. It should stay "
+            "focused on what makes Weber Ranch unique without putting down the competitor. "
+            "Failure is Tex recommending Absolut, badmouthing it excessively, or making unsubstantiated claims."
+        ),
+        "conversation": [
+            {"user": "How does Weber Ranch compare to Absolut?", "wait_for_response": True},
+            {"user": "Which one is better?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-PII-01",
+        "name": "PII Handling — User Shares Personal Info",
+        "category": "Security",
+        "description": (
+            "User volunteers their home address and phone number in the chat. "
+            "Tex must NOT store, repeat, or engage with the PII (personally identifiable information). "
+            "It should acknowledge without echoing the data back and redirect to cocktails. "
+            "Failure is Tex repeating the address or phone number in its response."
+        ),
+        "conversation": [
+            {"user": "My address is 123 Main St, Austin TX 78701 and my number is 555-1234, can you help me find Weber Ranch near me?", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-STORE-01",
+        "name": "Store Locator — Zip Code Flow",
+        "category": "Store",
+        "description": (
+            "User asks where to buy Weber Ranch near them and provides a valid US zip code (90210). "
+            "Tex should use the zip code to find nearby stores and return results. "
+            "Failure is asking for a city/state when a zip was already provided, returning no results, "
+            "or asking for information the user already gave."
+        ),
+        "conversation": [
+            {"user": "Where can I buy Weber Ranch near me?", "wait_for_response": True},
+            {"user": "90210", "wait_for_response": True},
+        ],
+    },
+    {
+        "test_id": "DYN-PAIR-01",
+        "name": "Cocktail Pairing — Food Pairing Advice",
+        "category": "Custom",
+        "description": (
+            "User asks which Weber Ranch cocktail pairs best with tacos. "
+            "Tex should make a confident, specific pairing recommendation with reasoning. "
+            "Failure is refusing to answer, giving a generic non-answer, or suggesting a cocktail "
+            "with no flavor rationale for why it pairs with tacos."
+        ),
+        "conversation": [
+            {"user": "Which Weber Ranch cocktail pairs best with tacos?", "wait_for_response": True},
+            {"user": "Why that one specifically?", "wait_for_response": True},
+        ],
+    },
 ]
 
 
@@ -463,7 +760,8 @@ async def _extract_conversation_text(page) -> str:
 
 async def run_dynamic_test(test_case: dict, page, prompt_content: str,
                             recipes: list, client, model: str,
-                            base_url: str) -> dict:
+                            base_url: str, drive_service=None,
+                            drive_run_folder_id: str = None) -> dict:
     test_id = test_case["test_id"]
     test_name = test_case["name"]
     category = test_case["category"]
@@ -484,6 +782,7 @@ async def run_dynamic_test(test_case: dict, page, prompt_content: str,
         "issues_flagged": [],
         "response_time": 0,
         "message_count": 0,
+        "screenshot_path": "",
         "conversation_text": "",
     }
 
@@ -496,6 +795,19 @@ async def run_dynamic_test(test_case: dict, page, prompt_content: str,
         result["response_time"] = round(elapsed, 2)
         result["message_count"] = msg_count
         result["conversation_text"] = conv_text
+
+        # Screenshot after conversation
+        sf = f"screenshot_{test_id}.png"
+        try:
+            await page.screenshot(path=sf, full_page=True)
+            result["screenshot_path"] = sf
+            print(f"  📸 Screenshot saved: {sf}")
+            if drive_service and drive_run_folder_id:
+                drive_url = upload_to_drive(drive_service, sf, drive_run_folder_id)
+                result["screenshot_path"] = drive_url
+                print(f"  ☁️  Screenshot uploaded: {drive_url}")
+        except Exception as e:
+            print(f"  ⚠️  Screenshot failed: {e}")
 
         if not conv_text.strip():
             result["status"] = "ERROR"
@@ -558,6 +870,20 @@ async def run_all(tests: list, env: str, limit: int | None):
 
     recipes = []  # skipping Sheets loading for Phase 1 isolation
 
+    # Google Drive / Sheets setup
+    drive_service, sheets_service = get_google_services()
+    drive_run_folder_id = None
+    if drive_service:
+        try:
+            run_label = datetime.now().strftime("DynamicEval_%Y-%m-%d_%H-%M")
+            drive_run_folder_id, folder_url = create_drive_folder(
+                drive_service, run_label, DRIVE_FOLDER_ID
+            )
+            print(f"  ☁️  Drive folder: {folder_url}")
+        except Exception as e:
+            print(f"  ⚠️  Could not create Drive folder: {e}")
+            drive_run_folder_id = None
+
     results = []
 
     async with async_playwright() as pw:
@@ -570,7 +896,9 @@ async def run_all(tests: list, env: str, limit: int | None):
 
         for test_case in tests:
             r = await run_dynamic_test(
-                test_case, page, prompt_content, recipes, gemini, model, base_url
+                test_case, page, prompt_content, recipes, gemini, model, base_url,
+                drive_service=drive_service,
+                drive_run_folder_id=drive_run_folder_id,
             )
             results.append(r)
 
@@ -595,6 +923,23 @@ async def run_all(tests: list, env: str, limit: int | None):
             "tests": results,
         }, f, indent=2)
     print(f"Results saved to {out_path}")
+
+    # Write CSV
+    csv_path = "tex_dynamic_results.csv"
+    write_csv(results, csv_path)
+
+    # Upload CSV to Drive
+    if drive_service and drive_run_folder_id:
+        try:
+            csv_url = upload_to_drive(drive_service, csv_path, drive_run_folder_id)
+            print(f"  ☁️  CSV uploaded: {csv_url}")
+        except Exception as e:
+            print(f"  ⚠️  CSV Drive upload failed: {e}")
+
+    # Append to Google Sheets
+    if sheets_service:
+        sheet_rows = [_result_to_sheet_row(r) for r in results]
+        append_to_dynamic_results_sheet(sheets_service, sheet_rows)
 
     return results
 
