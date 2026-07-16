@@ -82,6 +82,38 @@ jobs:
               --custom-description "${CUSTOM_DESC}"
           fi
 
+      - name: Upload screenshots to dashboard blob storage
+        if: always() && env.EVAL_DASHBOARD_URL != ''
+        env:
+          EVAL_DASHBOARD_URL: ${{ secrets.EVAL_DASHBOARD_URL }}
+          EVAL_DASHBOARD_KEY: ${{ secrets.EVAL_DASHBOARD_KEY }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ ! -f tex_dynamic_results.json ]; then
+            echo "No tex_dynamic_results.json found — skipping screenshot upload."
+            exit 0
+          fi
+
+          for f in screenshot_*.png; do
+            [ -f "$f" ] || continue
+            test_id=$(echo "$f" | sed -E 's/^screenshot_(.*)\.png$/\1/')
+            echo "Uploading $f for test $test_id..."
+            url=$(curl -sf -X POST "${EVAL_DASHBOARD_URL}/api/upload-screenshot?filename=${f}" \
+              -H "Authorization: Bearer ${EVAL_DASHBOARD_KEY}" \
+              -H "Content-Type: image/png" \
+              --data-binary "@${f}" | jq -r '.url // empty')
+            if [ -n "$url" ]; then
+              echo "  -> $url"
+              tmp=$(mktemp)
+              jq --arg tid "$test_id" --arg url "$url" \
+                '.tests |= map(if .test_id == $tid then .screenshot_path = $url else . end)' \
+                tex_dynamic_results.json > "$tmp" && mv "$tmp" tex_dynamic_results.json
+            else
+              echo "  -> upload failed, leaving screenshot_path as-is"
+            fi
+          done
+
       - name: Push results to eval dashboard
         if: always() && env.EVAL_DASHBOARD_URL != ''
         env:
