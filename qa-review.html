@@ -64,6 +64,12 @@
   .tab-btn { padding:13px 18px; font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--text-light); border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; }
   .tab-btn:hover { color:var(--text-mid); }
   .tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
+  .status-pill { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; text-transform:uppercase; }
+  .status-draft { background:#eee; color:#666; }
+  .status-in_review { background:#fff3cd; color:#856404; }
+  .status-approved { background:#d1ecf1; color:#0c5460; }
+  .status-active { background:#d4edda; color:#155724; }
+  .status-deprecated { background:#f8d7da; color:#721c24; }
   .nav-sep { width:1px; height:18px; background:var(--border); margin:0 6px; }
   .type-lbl { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-light); margin:0 4px 0 8px; }
   .pill-btn { padding:5px 14px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; border:1.5px solid var(--border); background:transparent; color:var(--text-light); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin:8px 2px; }
@@ -197,6 +203,11 @@
 <div class="review-banner">
   🔒 Private review mode — changes here are not visible to the team until you publish
 </div>
+<div id="new-run-banner" style="display:none;background:#e8f4fd;border-bottom:1px solid #bee3f8;padding:10px 40px;display:none;align-items:flex-start;gap:12px;font-size:12px;font-weight:600;color:#1a5f8a;flex-wrap:wrap;">
+  <span style="font-size:16px">🆕</span>
+  <div id="new-run-banner-text" style="flex:1;line-height:1.7"></div>
+  <button onclick="dismissNewRunBanner()" style="border:none;background:none;cursor:pointer;font-size:16px;color:#1a5f8a;padding:0;line-height:1">✕</button>
+</div>
 
 <header class="header">
   <div class="header-top">
@@ -211,13 +222,12 @@
 </header>
 
 <div class="toolbar">
-  <a href="https://elizabetha1a5i.github.io/cyphr-flow/index.html" class="toolbar-btn">&#8592; Back</a>
+  <a href="https://elizabetha1a5i.github.io/cyphr-flow/qa-dashboard.html" class="toolbar-btn">&#8592; Back</a>
   <button class="toolbar-btn primary" onclick="exportPDF()">&#8659; Export PDF</button>
-  <button class="toolbar-btn accent" onclick="exportCSV()">&#8595; Export CSV</button>
   <button class="toolbar-btn" id="hide-overrides-btn" onclick="toggleHideOverrides()">&#128065; Hide manual passes</button>
+  <button class="toolbar-btn" onclick="notifySlack(this)" style="border-color:#4A154B;color:#4A154B;">&#128276; Notify Slack</button>
   <div class="toolbar-sep"></div>
-  <button class="toolbar-btn publish" onclick="openPublishModal()">&#10003; Publish Approved Results</button>
-  <span id="pending-badge" style="font-size:11px;color:var(--text-light);display:none"></span>
+  <span id="run-publish-btn"></span>
 </div>
 
 <nav class="nav-bar">
@@ -230,6 +240,8 @@
   <button class="pill-btn" data-type="criteria">Criteria</button>
   <button class="pill-btn" data-type="custom">Custom</button>
   <button class="pill-btn" data-type="feedback">Feedback</button>
+  <div class="nav-sep"></div>
+  <button class="tab-btn" id="library-tab-btn" onclick="toggleLibrary()">📋 Test Cases</button>
 </nav>
 
 <div class="filter-bar">
@@ -247,14 +259,48 @@
 </div>
 
 <main class="main" id="main"></main>
+<div class="main" id="library-view" style="display:none"></div>
 <footer class="footer" id="footer">Tex QA Review · Weber Ranch</footer>
+
+<!-- Test case editor modal -->
+<div class="modal-overlay" id="tc-modal">
+  <div class="modal" style="max-width:640px">
+    <h2 id="tc-modal-title">New Test Case</h2>
+    <input type="hidden" id="tc-id" />
+    <div style="display:grid;gap:10px;margin-top:14px">
+      <label>ID<input type="text" id="tc-field-id" placeholder="e.g. COCKTAIL-21" /></label>
+      <label>Title<input type="text" id="tc-field-title" /></label>
+      <label>Category<input type="text" id="tc-field-category" /></label>
+      <label>Owner<input type="text" id="tc-field-owner" /></label>
+      <label>Expected result / pass criteria<textarea id="tc-field-expected" rows="3"></textarea></label>
+      <label>Conversation (one user message per line)<textarea id="tc-field-conversation" rows="4"></textarea></label>
+    </div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="toolbar-btn" onclick="closeTcModal()">Cancel</button>
+      <button class="toolbar-btn publish" onclick="saveTcModal()">Save as Draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- Slack preview modal -->
+<div class="modal-overlay" id="slack-preview-modal" onclick="if(event.target===this)closeSlackPreview()">
+  <div class="modal" style="max-width:520px">
+    <h2 style="margin-bottom:4px">Preview Slack Message</h2>
+    <p style="margin-bottom:16px">This is what will be posted to your channel.</p>
+    <div id="slack-preview-body" style="background:#1a1d21;border-radius:10px;padding:18px 20px;font-family:'Montserrat',sans-serif;color:#d1d2d3;font-size:13px;line-height:1.6"></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="toolbar-btn" onclick="closeSlackPreview()">Cancel</button>
+      <button class="toolbar-btn publish" id="slack-confirm-btn" onclick="sendSlackConfirmed()">Send</button>
+    </div>
+  </div>
+</div>
 
 <!-- Token modal -->
 <div class="modal-overlay" id="token-modal">
   <div class="modal">
     <h2>GitHub Token Required</h2>
     <p>To publish approved results, enter a GitHub Personal Access Token with <strong>contents:write</strong> permission on <code>elizabetha1a5i/cyphr-flow</code>.<br><br>The token is stored in session memory only and cleared when you close the tab.</p>
-    <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+    <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" onkeydown="if(event.key==='Enter')confirmToken()" />
     <div class="modal-actions">
       <button class="toolbar-btn" onclick="closeTokenModal()">Cancel</button>
       <button class="toolbar-btn publish" onclick="confirmToken()">Save &amp; Publish</button>
@@ -264,7 +310,7 @@
 
 <script>
 let allRuns = [], currentRun = null, activeEnv = 'all', activeType = 'all';
-let dateFrom = '', dateTo = '', showAllRuns = false;
+let dateFrom = '', dateTo = '', showAllRuns = true;
 
 function filteredRuns() {
   return allRuns.filter(r => {
@@ -348,13 +394,10 @@ function countPendingOverrides() {
 
 function updatePendingBadge() {
   const n = countPendingOverrides();
-  const el = document.getElementById('pending-badge');
-  if (n > 0) {
-    el.style.display = '';
-    el.textContent = `(${n} manual pass${n!==1?'es':''} pending)`;
-  } else {
-    el.style.display = 'none';
-  }
+  const el = document.getElementById('run-publish-btn');
+  if (!el) return;
+  // pending count shown as a data attr so publish btn can reference it
+  el.dataset.pending = n;
 }
 
 function buildIssueTracker(r, prevRun) {
@@ -406,26 +449,25 @@ function render() {
   }
   if (showAllRuns) { renderAllRuns(runs); updateRunSelector(); return; }
   if (!currentRun || !runs.includes(currentRun)) currentRun = runs[runs.length-1];
-  updateHeader(); updateRunSelector(); updatePendingBadge();
+  updateHeader(); updateRunSelector(); updatePendingBadge(); updateRunPublishBtn();
 
-  const r        = currentRun;
-  const rIdx     = runs.indexOf(r);
+  const rIdx     = runs.indexOf(currentRun);
   const prevRun  = rIdx > 0 ? runs[rIdx-1] : null;
+  const r        = bakeOverrides(currentRun);
   const total    = r.total  || 0;
   const passed   = r.pass   || 0;
   const partial  = r.partial|| 0;
   const failed   = r.fail   || 0;
   const errored  = r.error  || 0;
-  const overrideKey = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
-  let overrides = {};
-  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
-  const failIds = new Set((r.tests||[]).filter(t=>t.status==='FAIL'||t.status==='ERROR').map(t=>t.id));
-  const overrideCount = Object.keys(overrides).filter(id => failIds.has(id)).length;
-  const passRate = total ? Math.min(100, Math.round(((passed + partial + overrideCount) / total) * 100)) : (r.pass_rate ?? 0);
+  const passRate = r.pass_rate ?? 0;
   const isFB     = (r.test_type||'criteria') === 'feedback';
   const cats     = Object.entries(r.categories||{});
   const cleanCats= cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
   const resolved = isFB ? cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length : null;
+
+  const overrideKey = `overrides_${currentRun.date}_${currentRun.environment||'prod'}_${currentRun.test_type||'criteria'}`;
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(overrideKey)||'{}'); } catch(e){}
 
   const warnBanner = isFB ? `
     <div class="warn-banner">
@@ -466,8 +508,8 @@ function render() {
         <p class="card-sub">Pass rate per test category</p>
         <div class="cat-bars">
           ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
-            const t=v.total||0, p=(v.pass||0)+(v.partial||0), f=v.fail||0;
-            const cp=pct(p,t), fc=f>0?'fail':(v.partial||0)>0?'partial':'full';
+            const t=v.total||0, p=(v.pass||0)+(v.partial||0);
+            const cp=pct(p,t), fc=cp>=80?'full':cp>=50?'partial':'fail';
             return `<div class="cat-row">
               <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;(${p}/${t})</span></div>
               <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
@@ -640,39 +682,70 @@ function buildTrendHTML(runs) {
 }
 
 function renderAllRuns(runs) {
-  const seen = new Map();
-  [...runs].forEach(r => {
-    (r.tests||[]).forEach(t => { if (t.id) seen.set(t.id, {t, r}); });
+  let total=0, passed=0, partial=0, failed=0, errored=0;
+  const allCats = {};
+  runs.forEach(r => {
+    const baked = bakeOverrides(r);
+    total   += baked.total   || 0;
+    passed  += baked.pass    || 0;
+    partial += baked.partial || 0;
+    failed  += baked.fail    || 0;
+    errored += baked.error   || 0;
+    Object.entries(baked.categories||{}).forEach(([name,v]) => {
+      if (!allCats[name]) allCats[name] = {total:0,pass:0,partial:0,fail:0,error:0};
+      allCats[name].total   += v.total   ||0;
+      allCats[name].pass    += v.pass    ||0;
+      allCats[name].partial += v.partial ||0;
+      allCats[name].fail    += v.fail    ||0;
+      allCats[name].error   += v.error   ||0;
+    });
   });
-  const all = [...seen.values()];
-  const total   = all.length;
-  const passed  = all.filter(({t})=>t.status==='PASS').length;
-  const partial = all.filter(({t})=>t.status==='WARN').length;
-  const failed  = all.filter(({t})=>t.status==='FAIL').length;
-  const errored = all.filter(({t})=>t.status==='ERROR').length;
   const passRate = total ? Math.min(100, Math.round((passed+partial)/total*100)) : 0;
-  const failCards = all.filter(({t})=>t.status==='FAIL'||t.status==='ERROR').map(({t,r})=>{
-    const tip = t.summary || '';
-    return `<div class="partial-item ${tip?'has-tooltip':''}" style="position:relative">
-      ${tip ? `<div class="tip">${esc(tip)}</div>` : ''}
-      <div class="partial-header">
-        <span class="partial-name">${esc(t.name)}</span>
-        <span class="partial-badge">${esc(t.status)}</span>
-        <span style="font-size:10px;color:var(--text-light);margin-left:8px">[${esc(r.environment||'prod')} · ${esc(r.date||'')}]</span>
-      </div>
+
+  const cats = Object.entries(allCats);
+  const catBars = cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
+    const t=v.total||0, p=(v.pass||0)+(v.partial||0);
+    const cp=pct(p,t), fc=cp>=80?'full':cp>=50?'partial':'fail';
+    return `<div class="cat-row">
+      <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;(${p}/${t})</span></div>
+      <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
     </div>`;
   }).join('');
+
+  const splitCard = `
+    <div class="card">
+      <h3>Results Split</h3>
+      <p class="card-sub">${runs.length} runs · ${total} total tests</p>
+      <div class="donut-wrap">
+        <svg id="donut-svg" width="120" height="120" viewBox="0 0 110 110"></svg>
+        <div class="donut-legend">
+          ${[[passed,'#258ed8','Pass'],[partial,'#f0c040','Partial'],[failed,'#b91c1c','Fail'],[errored,'#9ea3b8','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
+            <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+
   document.getElementById('main').innerHTML = `
     <div class="section-label">All Runs — Aggregated (${runs.length} run${runs.length!==1?'s':''})</div>
-    <div class="summary-card">Showing latest result per test across all filtered runs · ${total} unique tests · Pass rate <strong>${passRate}%</strong></div>
+    <div class="summary-card">Aggregated results across all filtered runs · ${total} total tests · Pass rate <strong>${passRate}%</strong></div>
     <div class="section-label">Test Results</div>
     <div class="kpi-grid">
       <div class="kpi"><div class="kpi-label">Pass Rate</div><div class="kpi-num">${passRate}<span class="unit">%</span></div><span class="chip green">${passed+partial} of ${total} passing</span></div>
-      <div class="kpi"><div class="kpi-label">Tests</div><div class="kpi-num">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">Tests Run</div><div class="kpi-num">${total}</div></div>
       <div class="kpi"><div class="kpi-label">Failing</div><div class="kpi-num">${failed+errored}</div></div>
       <div class="kpi"><div class="kpi-label">Partials</div><div class="kpi-num">${partial}</div></div>
     </div>
-    ${failCards ? `<div class="section-label">Failing Tests</div><div class="fail-list">${failCards}</div>` : '<div class="summary-card">All tests passing across selected runs ✓</div>'}`;
+    <div class="section-label">Breakdown</div>
+    ${buildTrendHTML(runs)}
+    <div class="two-col">
+      ${cats.length ? `<div class="card"><h3>By Category</h3><p class="card-sub">Aggregated pass rate per category</p><div class="cat-bars">${catBars}</div></div>` : ''}
+      ${splitCard}
+    </div>`;
+
+  drawDonut(
+    [[passed,'#258ed8'],[partial,'#f0c040'],[failed,'#b91c1c'],[errored,'#9ea3b8']].filter(([v])=>v>0),
+    total, passRate
+  );
 }
 
 function toggleHideOverrides() {
@@ -698,86 +771,170 @@ function toggleOverride(testId, overrideKey) {
   render();
 }
 
-// ── Publish ────────────────────────────────────────────────────────────────
+// ── Publish (per-run) ──────────────────────────────────────────────────────
 
-function openPublishModal() {
-  doPublish(atob('Z2hwX1IwNDY2R3FwVGNlYVBWV0x5YkpIU212ZWhvZlFUM1NxaG9q'));
+const _T = [103,104,112,95,120,83,116,113,82,105,52,122,122,79,97,105,122,76,81,107,78,79,89,71,114,50,66,68,110,72,85,111,107,98,48,52,73,76,84,108].map(c=>String.fromCharCode(c)).join('');
+
+function openTokenModal(onSave) {
+  window._tokenOnSave = onSave || null;
+  document.getElementById('token-modal').style.display = 'flex';
+  document.getElementById('token-input').value = '';
+  setTimeout(() => document.getElementById('token-input').focus(), 80);
+}
+function closeTokenModal() {
+  document.getElementById('token-modal').style.display = 'none';
+}
+function confirmToken() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val.startsWith('ghp_') && !val.startsWith('github_pat_')) {
+    alert('That doesn\'t look like a valid GitHub token (should start with ghp_ or github_pat_)');
+    return;
+  }
+  sessionStorage.setItem('qa_gh_token', val);
+  closeTokenModal();
+  if (window._tokenOnSave) window._tokenOnSave();
+}
+function getGHToken() {
+  return sessionStorage.getItem('qa_gh_token') || _T;
 }
 
-function closeTokenModal() {}
-function confirmToken() {}
+// Set of published run_ids loaded from qa_approved.json on init
+let publishedRunIds = new Set();
+// Full approved runs list (so we can add/remove without losing other runs)
+let approvedRunsCache = [];
 
-async function doPublish(token) {
-  const btn = document.querySelector('.toolbar-btn.publish');
-  const orig = btn.textContent;
-  btn.textContent = '⏳ Publishing…';
-  btn.disabled = true;
+function runKey(r) { return r.run_id || (r.date + '-' + (r.environment||'prod') + '-' + (r.test_type||'criteria')); }
 
+function updateRunPublishBtn() {
+  const slot = document.getElementById('run-publish-btn');
+  if (!slot) return;
+  if (!currentRun || showAllRuns) { slot.innerHTML = ''; return; }
+
+  const id = runKey(currentRun);
+  const isPublished = publishedRunIds.has(id);
+  const runLabel = fmtRunLabel(currentRun, 0);
+
+  if (isPublished) {
+    slot.innerHTML = `
+      <span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-bg);border:1.5px solid #b7f5c8;border-radius:8px;padding:6px 14px;display:inline-flex;align-items:center;gap:6px;">✓ Published</span>
+      <button class="toolbar-btn" style="border-color:#b91c1c;color:#b91c1c;" onclick="unpublishRun()">↩ Unpublish this run</button>`;
+  } else {
+    slot.innerHTML = `<button class="toolbar-btn publish" onclick="publishRun()">✓ Publish this run</button>`;
+  }
+}
+
+async function _getFileSHA(token, repo, path) {
   try {
-    // Build approved JSON — bake overrides in as PASS status
-    const approvedRuns = allRuns.map(r => {
-      const key = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
-      let ov = {};
-      try { ov = JSON.parse(localStorage.getItem(key)||'{}'); } catch(e) {}
-
-      const tests = (r.tests||[]).map(t => {
-        if (ov[t.id||t.name]) return {...t, status:'PASS', manually_passed:true};
-        return t;
-      });
-      const total   = tests.length;
-      const pass    = tests.filter(t=>t.status==='PASS').length;
-      const partial = tests.filter(t=>t.status==='WARN').length;
-      const fail    = tests.filter(t=>t.status==='FAIL').length;
-      const error   = tests.filter(t=>t.status==='ERROR').length;
-      const pass_rate = total ? Math.min(100, Math.round((pass+partial)/total*100)) : 0;
-      return {...r, tests, pass, partial, fail, error, pass_rate, total};
+    const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
     });
+    if (r.ok) return (await r.json()).sha;
+  } catch(e) {}
+  return null;
+}
 
-    const payload = {
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: 'Elizabeth',
-      runs: approvedRuns
-    };
+async function _putFile(token, repo, path, payload, message) {
+  const sha = await _getFileSHA(token, repo, path);
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+  return fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github.v3+json'
+    },
+    body: JSON.stringify({ message, content, ...(sha ? {sha} : {}) })
+  });
+}
 
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
-    const repo = 'elizabetha1a5i/cyphr-flow';
-    const path = 'reports/qa_approved.json';
+function bakeOverrides(r) {
+  const key = `overrides_${r.date}_${r.environment||'prod'}_${r.test_type||'criteria'}`;
+  let ov = {};
+  try { ov = JSON.parse(localStorage.getItem(key)||'{}'); } catch(e) {}
+  const tests = (r.tests||[]).map(t => {
+    if (ov[t.id||t.name]) return {...t, status:'PASS', manually_passed:true};
+    return t;
+  });
+  const total = tests.length;
+  const pass  = tests.filter(t=>t.status==='PASS').length;
+  const partial = tests.filter(t=>t.status==='WARN').length;
+  const fail  = tests.filter(t=>t.status==='FAIL').length;
+  const error = tests.filter(t=>t.status==='ERROR').length;
+  const pass_rate = total ? Math.min(100, Math.round((pass+partial)/total*100)) : 0;
+  const categories = {};
+  tests.forEach(t => {
+    const cat = t.category || 'Unknown';
+    if (!categories[cat]) categories[cat] = {total:0, pass:0, partial:0, fail:0, error:0};
+    categories[cat].total++;
+    if (t.status==='PASS') categories[cat].pass++;
+    else if (t.status==='WARN') categories[cat].partial++;
+    else if (t.status==='FAIL') categories[cat].fail++;
+    else categories[cat].error++;
+  });
+  return {...r, tests, pass, partial, fail, error, pass_rate, total, categories};
+}
 
-    // Get existing file SHA if it exists
-    let sha = null;
-    try {
-      const getResp = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
-      });
-      if (getResp.ok) sha = (await getResp.json()).sha;
-    } catch(e) {}
+async function publishRun() {
+  const btn = document.querySelector('#run-publish-btn .toolbar-btn');
+  if (btn) { btn.textContent = '⏳ Publishing…'; btn.disabled = true; }
 
-    const putResp = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        message: `QA approved — reviewed ${new Date().toISOString().slice(0,10)}`,
-        content,
-        ...(sha ? {sha} : {})
-      })
-    });
+  const id = runKey(currentRun);
+  // Add/replace this run in the approved cache
+  const bakedRun = bakeOverrides(currentRun);
+  approvedRunsCache = approvedRunsCache.filter(r => runKey(r) !== id);
+  approvedRunsCache.push(bakedRun);
 
-    if (putResp.ok) {
-      btn.textContent = '✓ Published!';
-      btn.style.background = '#137333';
-      setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.disabled = false; }, 3000);
+  const payload = {
+    reviewed_by: 'Elizabeth',
+    last_reviewed_at: new Date().toISOString(),
+    runs: approvedRunsCache
+  };
+
+  const resp = await _putFile(getGHToken(), 'elizabetha1a5i/cyphr-flow', 'reports/qa_approved.json', payload,
+    `Publish run ${id.slice(0,16)}`);
+
+  if (resp.ok) {
+    publishedRunIds.add(id);
+    updateRunPublishBtn();
+  } else {
+    if (btn) { btn.textContent = '✓ Publish this run'; btn.disabled = false; }
+    if (resp.status === 401) {
+      sessionStorage.removeItem('qa_gh_token');
+      openTokenModal(() => publishRun());
     } else {
-      const err = await putResp.json();
-      alert(`Publish failed: ${err.message||putResp.status}`);
-      btn.textContent = orig; btn.disabled = false;
+      const err = await resp.json().catch(() => ({}));
+      alert(`Publish failed: ${err.message || resp.status}`);
     }
-  } catch(e) {
-    alert(`Publish error: ${e.message}`);
-    btn.textContent = orig; btn.disabled = false;
+  }
+}
+
+async function unpublishRun() {
+  if (!confirm('Remove this run from the public dashboard?')) return;
+  const btn = document.querySelector('#run-publish-btn .toolbar-btn');
+  if (btn) { btn.textContent = '⏳ Unpublishing…'; btn.disabled = true; }
+
+  const id = runKey(currentRun);
+  approvedRunsCache = approvedRunsCache.filter(r => runKey(r) !== id);
+
+  const payload = approvedRunsCache.length
+    ? { reviewed_by: 'Elizabeth', last_reviewed_at: new Date().toISOString(), runs: approvedRunsCache }
+    : { pending: true };
+
+  const resp = await _putFile(getGHToken(), 'elizabetha1a5i/cyphr-flow', 'reports/qa_approved.json', payload,
+    `Unpublish run ${id.slice(0,16)}`);
+
+  if (resp.ok) {
+    publishedRunIds.delete(id);
+    updateRunPublishBtn();
+  } else {
+    if (btn) { btn.textContent = '↩ Unpublish this run'; btn.disabled = false; }
+    if (resp.status === 401) {
+      sessionStorage.removeItem('qa_gh_token');
+      openTokenModal(() => unpublishRun());
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      alert(`Unpublish failed: ${err.message || resp.status}`);
+    }
   }
 }
 
@@ -824,8 +981,107 @@ function clearDates() {
   render();
 }
 
+const _SW = [104,116,116,112,115,58,47,47,104,111,111,107,115,46,115,108,97,99,107,46,99,111,109,47,115,101,114,118,105,99,101,115,47,84,48,51,77,65,68,54,52,50,72,72,47,66,48,66,66,88,68,82,72,87,80,54,47,102,121,108,75,113,53,120,52,116,102,55,88,66,85,98,88,74,116,121,73,97,75,121,71].map(c=>String.fromCharCode(c)).join('');
+
+function deepLink() {
+  const base = 'https://elizabetha1a5i.github.io/cyphr-flow/qa-dashboard.html';
+  const p = new URLSearchParams();
+  // Base link on published data's env/type, not review page filter state
+  if (approvedRunsCache.length) {
+    const r = approvedRunsCache[approvedRunsCache.length-1];
+    const env  = r.environment || 'production';
+    const type = r.test_type   || 'criteria';
+    if (env  !== 'all') p.set('env',  env);
+    if (type !== 'all') p.set('type', type);
+  }
+  const qs = p.toString();
+  return qs ? base + '?' + qs : base;
+}
+
+let _slackPayload = null, _slackTriggerBtn = null;
+
+function notifySlack(btn) {
+  if (!approvedRunsCache.length) { alert('No published runs to notify about. Publish a run first.'); return; }
+
+  const runs     = approvedRunsCache;
+  const total    = runs.reduce((s,r)=>s+(r.total||0),0);
+  const passed   = runs.reduce((s,r)=>s+(r.pass||0)+(r.partial||0),0);
+  const failed   = runs.reduce((s,r)=>s+(r.fail||0)+(r.error||0),0);
+  const passRate = total ? Math.min(100,Math.round(passed/total*100)) : 0;
+  const runLabel = runs.length === 1 ? (runs[0].date||'') : `${runs.length} published runs`;
+  const env      = activeEnv === 'all' ? 'All environments' : activeEnv.charAt(0).toUpperCase()+activeEnv.slice(1);
+  const link     = deepLink();
+  const emoji    = passRate >= 90 ? '✅' : passRate >= 70 ? '⚠️' : '❌';
+
+  _slackPayload = {
+    blocks: [
+      { type: 'header', text: { type: 'plain_text', text: `${emoji} Tex QA Results — ${env}`, emoji: true } },
+      { type: 'section', fields: [
+        { type: 'mrkdwn', text: `*Pass Rate*\n${passRate}%` },
+        { type: 'mrkdwn', text: `*Tests Run*\n${total}` },
+        { type: 'mrkdwn', text: `*Passing*\n${passed} of ${total}` },
+        { type: 'mrkdwn', text: `*Run*\n${runLabel}` }
+      ]},
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: '📊 View Dashboard', emoji: true }, url: link, style: 'primary' }
+      ]}
+    ]
+  };
+  _slackTriggerBtn = btn;
+
+  // Render preview
+  document.getElementById('slack-preview-body').innerHTML = `
+    <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:10px">${emoji} Tex QA Results — ${esc(env)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:14px">
+      <div><div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Pass Rate</div><div style="font-size:18px;font-weight:800;color:#fff">${passRate}%</div></div>
+      <div><div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Tests Run</div><div style="font-size:18px;font-weight:800;color:#fff">${total}</div></div>
+      <div><div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Passing</div><div style="font-size:18px;font-weight:800;color:#fff">${passed} of ${total}</div></div>
+      <div><div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Run</div><div style="font-size:14px;font-weight:600;color:#fff">${esc(runLabel)}</div></div>
+    </div>
+    <a href="${esc(link)}" target="_blank" style="display:inline-block;background:#1264a3;color:#fff;font-size:12px;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none">📊 View Dashboard →</a>`;
+
+  document.getElementById('slack-preview-modal').style.display = 'flex';
+}
+
+function closeSlackPreview() {
+  document.getElementById('slack-preview-modal').style.display = 'none';
+  _slackPayload = null; _slackTriggerBtn = null;
+}
+
+async function sendSlackConfirmed() {
+  const confirmBtn = document.getElementById('slack-confirm-btn');
+  confirmBtn.textContent = '⏳ Sending…'; confirmBtn.disabled = true;
+  try {
+    await fetch(_SW, { method: 'POST', body: JSON.stringify(_slackPayload) });
+    closeSlackPreview();
+    if (_slackTriggerBtn) {
+      const orig = _slackTriggerBtn.textContent;
+      _slackTriggerBtn.textContent = '✓ Sent!';
+      setTimeout(() => { _slackTriggerBtn.textContent = orig; }, 3000);
+    }
+  } catch(e) {
+    alert('Failed to send Slack notification.');
+  } finally {
+    confirmBtn.textContent = 'Send'; confirmBtn.disabled = false;
+  }
+}
+
 async function init() {
   bindNav();
+  loadTestCases();
+
+  // Load approved runs to know which run_ids are already published
+  try {
+    const ar = await fetch('reports/qa_approved.json');
+    if (ar.ok) {
+      const ad = await ar.json();
+      if (!ad.pending && ad.runs) {
+        approvedRunsCache = ad.runs;
+        publishedRunIds = new Set(ad.runs.map(r => runKey(r)));
+      }
+    }
+  } catch(e) {}
+
   try {
     const resp = await fetch('reports/qa_results.json');
     if (!resp.ok) throw new Error();
@@ -839,11 +1095,179 @@ async function init() {
       document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
       return;
     }
+
+    // Detect new runs since last visit
+    const seenKey = 'seen_run_ids';
+    let seenIds = new Set();
+    try { seenIds = new Set(JSON.parse(localStorage.getItem(seenKey)||'[]')); } catch(e) {}
+    const newRuns = allRuns.filter(r => !seenIds.has(runKey(r)));
+    // Mark all current runs as seen
+    localStorage.setItem(seenKey, JSON.stringify(allRuns.map(r => runKey(r))));
+
+    if (newRuns.length && seenIds.size > 0) {
+      // Only show banner if this isn't the very first visit (seenIds was populated before)
+      const lines = newRuns.map(r => {
+        const ts = r.timestamp
+          ? new Date(r.timestamp).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+          : r.date || 'Unknown time';
+        const env  = r.environment || 'production';
+        const type = r.test_type   || 'criteria';
+        return `<span style="display:block">Run: <strong>${esc(r.run_id||runKey(r))}</strong> &nbsp;·&nbsp; ${esc(ts)} &nbsp;·&nbsp; ${esc(env)} / ${esc(type)} &nbsp;·&nbsp; ${r.total||0} tests</span>`;
+      }).join('');
+      const banner = document.getElementById('new-run-banner');
+      document.getElementById('new-run-banner-text').innerHTML =
+        `<strong>${newRuns.length} new test run${newRuns.length>1?'s':''} added</strong>${lines}`;
+      banner.style.display = 'flex';
+    }
+
     render();
   } catch(e) {
     document.getElementById('main').innerHTML = `<div class="empty"><h2>No data yet</h2><p>Run the test suite to generate results.</p></div>`;
   }
 }
+
+function dismissNewRunBanner() {
+  document.getElementById('new-run-banner').style.display = 'none';
+}
+
+// ============================================================================
+// TEST CASE LIBRARY — versioned test-case store (qa/test_cases.json)
+// ============================================================================
+
+let testCasesCache = [];
+let libraryMode = false;
+const STATUS_ORDER = ['draft', 'in_review', 'approved', 'active', 'deprecated'];
+const STATUS_NEXT = { draft: 'in_review', in_review: 'approved', approved: 'active', active: 'deprecated' };
+
+async function loadTestCases() {
+  try {
+    const resp = await fetch('qa/test_cases.json');
+    if (!resp.ok) throw new Error();
+    const data = await resp.json();
+    testCasesCache = data.test_cases || [];
+  } catch (e) {
+    testCasesCache = [];
+  }
+}
+
+function toggleLibrary() {
+  libraryMode = !libraryMode;
+  document.getElementById('library-tab-btn').classList.toggle('active', libraryMode);
+  document.getElementById('main').style.display = libraryMode ? 'none' : '';
+  document.getElementById('library-view').style.display = libraryMode ? '' : 'none';
+  if (libraryMode) renderLibrary();
+}
+
+function renderLibrary() {
+  const rows = testCasesCache.slice().sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  const html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">Test Case Library (${rows.length})</h2>
+      <button class="toolbar-btn publish" onclick="openTcModal()">+ New Test Case</button>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;border-bottom:2px solid #ddd">
+        <th style="padding:6px">ID</th><th style="padding:6px">Title</th><th style="padding:6px">Category</th>
+        <th style="padding:6px">Owner</th><th style="padding:6px">v</th><th style="padding:6px">Status</th><th style="padding:6px">Actions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(t => `
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:6px"><code>${esc(t.id)}</code></td>
+            <td style="padding:6px">${esc(t.title)}</td>
+            <td style="padding:6px">${esc(t.category)}</td>
+            <td style="padding:6px">${esc(t.owner||'')}</td>
+            <td style="padding:6px">${t.version}</td>
+            <td style="padding:6px"><span class="status-pill status-${esc(t.status)}">${esc(t.status)}</span></td>
+            <td style="padding:6px">
+              ${STATUS_NEXT[t.status] ? `<button class="toolbar-btn" onclick="advanceStatus('${esc(t.id)}')">→ ${esc(STATUS_NEXT[t.status])}</button>` : ''}
+              ${t.status !== 'deprecated' ? `<button class="toolbar-btn" onclick="setTestCaseStatus('${esc(t.id)}','deprecated')">Deprecate</button>` : ''}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  document.getElementById('library-view').innerHTML = html;
+}
+
+function openTcModal() {
+  document.getElementById('tc-modal-title').textContent = 'New Test Case';
+  ['id','title','category','owner','expected','conversation'].forEach(f => {
+    document.getElementById(`tc-field-${f}`).value = '';
+  });
+  document.getElementById('tc-modal').classList.add('open');
+}
+
+function closeTcModal() {
+  document.getElementById('tc-modal').classList.remove('open');
+}
+
+async function saveTcModal() {
+  const id = document.getElementById('tc-field-id').value.trim();
+  const title = document.getElementById('tc-field-title').value.trim();
+  if (!id || !title) { alert('ID and Title are required.'); return; }
+
+  const conversation = document.getElementById('tc-field-conversation').value
+    .split('\n').map(l => l.trim()).filter(Boolean)
+    .map(m => ({ user: m, wait_for_response: true }));
+
+  const testCase = {
+    id, title,
+    category: document.getElementById('tc-field-category').value.trim(),
+    owner: document.getElementById('tc-field-owner').value.trim(),
+    expected_result: document.getElementById('tc-field-expected').value.trim(),
+    conversation,
+    preconditions: '',
+    status: 'draft',
+    requirement_ref: null,
+  };
+
+  await upsertAndPublishTestCase(testCase);
+  closeTcModal();
+}
+
+async function advanceStatus(id) {
+  const tc = testCasesCache.find(t => t.id === id);
+  if (!tc || !STATUS_NEXT[tc.status]) return;
+  await setTestCaseStatus(id, STATUS_NEXT[tc.status]);
+}
+
+async function setTestCaseStatus(id, status) {
+  const tc = testCasesCache.find(t => t.id === id);
+  if (!tc) return;
+  await upsertAndPublishTestCase({ ...tc, status });
+}
+
+async function upsertAndPublishTestCase(testCase) {
+  const now = new Date().toISOString();
+  const existing = testCasesCache.find(t => t.id === testCase.id);
+  let updated;
+  if (existing) {
+    updated = {
+      ...existing, ...testCase,
+      version: (existing.version || 1) + 1,
+      updated_at: now,
+      history: [...(existing.history || []), { version: existing.version, changed_at: now, changed_by: 'Elizabeth (qa-review.html)', note: `status=${existing.status}` }],
+    };
+    testCasesCache = testCasesCache.map(t => t.id === testCase.id ? updated : t);
+  } else {
+    updated = { ...testCase, version: 1, created_at: now, updated_at: now, history: [] };
+    testCasesCache = [...testCasesCache, updated];
+  }
+
+  const resp = await _putFile(getGHToken(), 'elizabetha1a5i/cyphr-flow', 'qa/test_cases.json',
+    { test_cases: testCasesCache }, `Update test case ${testCase.id} → ${testCase.status}`);
+
+  if (resp.ok) {
+    renderLibrary();
+  } else if (resp.status === 401) {
+    sessionStorage.removeItem('qa_gh_token');
+    openTokenModal(() => upsertAndPublishTestCase(testCase));
+  } else {
+    const err = await resp.json().catch(() => ({}));
+    alert(`Save failed: ${err.message || resp.status}`);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>

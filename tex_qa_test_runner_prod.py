@@ -30,6 +30,7 @@ from googleapiclient.http import MediaFileUpload
 from google import genai
 from prompt_loader import load_prompts_for_category, format_rules_for_prompt, get_rules_for_category
 from dynamic_evaluator import run_dynamic_evaluation, build_description_from_test
+from qa.test_case_store import load_runnable, as_test_script
 
 # ============================================================================
 # CONFIGURATION
@@ -369,7 +370,7 @@ def load_ingredients(sheets_service):
 # ============================================================================
 
 RESULTS_COLUMNS = [
-    "test_id", "name", "category", "date", "environment",
+    "test_id", "name", "category", "test_case_version", "date", "environment",
     "status", "score", "criteria_tested", "criteria_passed", "criteria_failed",
     "critical_failures", "high_failures", "other_failures",
     "all_failed_criteria", "url_failures", "url_warnings",
@@ -821,9 +822,13 @@ def upload_to_drive(service, file_path, folder_id):
 
 # ============================================================================
 # TEST SCRIPTS  (no consent opener — web widget, not SMS)
+#
+# Superseded by qa/test_case_store.py — this list was the original seed data
+# migrated into qa/test_cases.json and is kept only as a historical reference.
+# The runner loads active/approved test cases from the JSON store instead.
 # ============================================================================
 
-TEST_SCRIPTS = [
+_LEGACY_TEST_SCRIPTS_SEED = [
 
     # ── COCKTAILS (20 tests) ─────────────────────────────────────────────────
 
@@ -1867,11 +1872,13 @@ async def run_test(test_case, page, drive_service, folder_id,
     test_id   = test_case["test_id"]
     test_name = test_case["name"]
     category  = test_case["category"]
+    test_case_version = test_case.get("test_case_version")
 
     print(f"\n{'='*70}\n🧪 {test_id}: {test_name}\n{'='*70}")
 
     result = {
         "test_id": test_id, "name": test_name, "category": category,
+        "test_case_version": test_case_version,
         "date": datetime.now().strftime("%m/%d/%Y %H:%M:%S"),
         "environment": ENVIRONMENT,
         "status": "PASS", "score": "",
@@ -2164,7 +2171,8 @@ def main():
                         help="Run only the first N tests (e.g. --limit 1 to smoke-test the pipeline)")
     args = parser.parse_args()
 
-    base_tests = TEST_SCRIPTS[:args.limit] if args.limit else TEST_SCRIPTS
+    all_tests = [as_test_script(t) for t in load_runnable()]
+    base_tests = all_tests[:args.limit] if args.limit else all_tests
 
     print("\n🔐 Connecting to Google...")
     drive_service, sheets_service = get_google_services()

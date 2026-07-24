@@ -27,6 +27,7 @@ from googleapiclient.http import MediaFileUpload
 from playwright.async_api import async_playwright
 
 from prompt_loader import load_prompts_for_category, format_rules_for_prompt
+from qa.test_case_store import upsert as upsert_test_case, upsert_via_dashboard
 
 # ── Reuse helpers from prod runner without importing the whole file ───────────
 # (tex_qa_test_runner_prod.py is a script not a module — import would run it)
@@ -1049,6 +1050,25 @@ def main():
         if not custom_tests:
             print("❌ No custom tests could be generated. Aborting.")
             return
+
+        # Persist each generated custom test into the versioned test-case
+        # store as a draft, so it's discoverable/promotable in the review UI
+        # instead of disappearing after this one-off run. Prefers the
+        # Tex-eval-dashboard Postgres store (source of truth in CI); falls
+        # back to the local JSON file when running outside CI.
+        for t in custom_tests:
+            draft = {
+                "id": t["test_id"],
+                "title": t["name"],
+                "category": t["category"],
+                "preconditions": "",
+                "conversation": t["conversation"],
+                "expected_result": t["description"],
+                "owner": os.environ.get("USER", "unknown"),
+                "status": "draft",
+            }
+            if not upsert_via_dashboard(draft):
+                upsert_test_case(draft, changed_by="tex_dynamic_eval_runner (custom test)")
 
         asyncio.run(run_all(custom_tests, args.env, None))
     else:

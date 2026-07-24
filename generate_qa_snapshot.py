@@ -69,6 +69,8 @@ def build_run_entry(rows, label=None, screenshots_dir=None, run_date=None):
                 screenshot_local = f"screenshots/{run_date}/{test_id}.png"
         tests.append({
             "id":                test_id,
+            "test_case_id":      test_id,
+            "test_case_version": row.get("test_case_version", ""),
             "name":              row.get("name", ""),
             "category":          row.get("category", ""),
             "status":            status,
@@ -142,8 +144,18 @@ def main():
     ]
     existing["runs"].append(run_entry)
 
-    # Keep last 30 runs max
-    existing["runs"] = existing["runs"][-30:]
+    # Keep last 30 runs live in qa_results.json (what the dashboard fetches),
+    # but archive older runs to reports/history/ instead of dropping them —
+    # full execution history is retained indefinitely for audit purposes.
+    if len(existing["runs"]) > 30:
+        overflow = existing["runs"][:-30]
+        history_dir = out_path.parent / "history"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        for old_run in overflow:
+            archive_path = history_dir / f"{old_run['run_id']}.json"
+            if not archive_path.exists():
+                archive_path.write_text(json.dumps(old_run, indent=2, ensure_ascii=False), encoding="utf-8")
+        existing["runs"] = existing["runs"][-30:]
 
     out_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[OK] Snapshot written: {out_path}")

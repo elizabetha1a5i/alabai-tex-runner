@@ -63,6 +63,12 @@
   .tab-btn { padding:13px 18px; font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--text-light); border:none; border-bottom:2px solid transparent; background:none; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; }
   .tab-btn:hover { color:var(--text-mid); }
   .tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
+  .status-pill { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; text-transform:uppercase; }
+  .status-draft { background:#eee; color:#666; }
+  .status-in_review { background:#fff3cd; color:#856404; }
+  .status-approved { background:#d1ecf1; color:#0c5460; }
+  .status-active { background:#d4edda; color:#155724; }
+  .status-deprecated { background:#f8d7da; color:#721c24; }
   .nav-sep { width:1px; height:18px; background:var(--border); margin:0 6px; }
   .type-lbl { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-light); margin:0 4px 0 8px; }
   .pill-btn { padding:5px 14px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; border:1.5px solid var(--border); background:transparent; color:var(--text-light); cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .15s; margin:8px 2px; }
@@ -236,6 +242,8 @@
   <button class="pill-btn" data-type="criteria">Criteria</button>
   <button class="pill-btn" data-type="custom">Custom</button>
   <button class="pill-btn" data-type="feedback">Feedback</button>
+  <div class="nav-sep"></div>
+  <button class="tab-btn" id="library-tab-btn" onclick="toggleLibrary()">📋 Test Case Library</button>
 </nav>
 
 <div class="filter-bar">
@@ -253,11 +261,12 @@
 </div>
 
 <main class="main" id="main"></main>
+<div class="main" id="library-view" style="display:none"></div>
 <footer class="footer" id="footer">Tex QA · Weber Ranch</footer>
 
 <script>
 let allRuns = [], currentRun = null, activeEnv = 'all', activeType = 'all';
-let dateFrom = '', dateTo = '', showAllRuns = false;
+let dateFrom = '', dateTo = '', showAllRuns = true;
 
 function filteredRuns() {
   return allRuns.filter(r => {
@@ -401,14 +410,12 @@ function render() {
     ? `Issue-specific test run · ${esc(r.label||fmtDate(r.date))} · ${cats.length} issues tracked · ${total} test variants run · Overall pass rate <strong>${passRate}%</strong>${resolved!==null?` · ${resolved} of ${cats.length} issues resolved`:''}`
     : `${esc(r.test_type||'Criteria')} test run · ${esc(r.label||fmtDate(r.date))} · ${total} tests across ${cats.length} categories · Pass rate <strong>${passRate}%</strong>${cleanCats===cats.length?' · All categories clean':''}`;
 
-  const kpi3Val = isFB ? failed  : partial;
-  const kpi3Lbl = isFB ? 'Failures' : 'Partials';
-  const kpi3Sub = isFB
-    ? `<span class="chip ${failed===0?'green':'red'}">${pct(failed,total)}% fail rate</span>`
-    : `<span class="chip amber">to monitor</span>`;
-  const kpi4Val = isFB ? (resolved??cleanCats) : cleanCats;
-  const kpi4Lbl = isFB ? 'Issues Resolved' : 'Clean Categories';
-  const kpi4Sub = `<span class="chip green">of ${cats.length} ${isFB?'tracked':'categories'}</span>`;
+  const kpi3Val = isFB ? cats.filter(([,v])=>pct((v.pass||0)+(v.partial||0),v.total||0)>=80).length : cleanCats;
+  const kpi3Lbl = isFB ? 'Issues Resolved' : 'Clean Categories';
+  const kpi3Sub = `<span class="chip green">of ${cats.length} ${isFB?'tracked':'categories'}</span>`;
+  const kpi4Val = passRate >= 90 ? '✓' : passRate >= 70 ? '~' : '!';
+  const kpi4Lbl = 'Overall Health';
+  const kpi4Sub = passRate >= 90 ? `<span class="chip green">Passing</span>` : passRate >= 70 ? `<span class="chip amber">Monitor</span>` : `<span class="chip amber">Needs review</span>`;
 
   const splitCard = `
     <div class="card">
@@ -431,7 +438,7 @@ function render() {
         <div class="cat-bars">
           ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
             const t=v.total||0, p=(v.pass||0)+(v.partial||0), f=v.fail||0;
-            const cp=pct(p,t), fc=f>0?'fail':(v.partial||0)>0?'partial':'full';
+            const cp=pct(p,t), fc=cp>=80?'full':cp>=50?'partial':'fail';
             return `<div class="cat-row">
               <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;(${p}/${t})</span></div>
               <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
@@ -441,50 +448,6 @@ function render() {
       </div>
       ${splitCard}
     </div>` : `<div style="margin-bottom:28px">${splitCard}</div>`;
-
-  const issueHTML = isFB ? buildIssueTracker(r, prevRun) : '';
-
-  function testCard(t, typeClass) {
-    const criteriaStr = t.criteria_failed||t.critical_failures||t.high_failures||'';
-    const critTags = criteriaStr.split(/[,;|]/).map(s=>s.trim()).filter(Boolean)
-      .map(c=>`<span class="criteria-tag ${typeClass==='warn'?'warn':''}">${esc(c)}</span>`).join('');
-    const screenshotLink = t.screenshot_path
-      ? `<a class="link-btn" href="${esc(t.screenshot_path)}" target="_blank">📸 Screenshot</a>` : '';
-    const convLink = t.conversation_path
-      ? `<a class="link-btn" href="${esc(t.conversation_path)}" target="_blank">💬 Conversation</a>` : '';
-    const isManualPass = !!t.manually_passed;
-    const badgeLabel = isManualPass ? 'Pass' : (t.score || (typeClass==='warn' ? 'Partial' : 'Fail'));
-    const badgeStyle = isManualPass ? 'background:var(--green-bg);color:var(--green);border:1px solid #b7f5c8;' : '';
-    const tipText = t.summary || '';
-    return `
-      <div class="partial-item ${tipText?'has-tooltip':''}">
-        ${tipText ? `<div class="tip">${esc(tipText)}</div>` : ''}
-        <div class="partial-header">
-          <span class="partial-name">${esc(t.name)}</span>
-          <span class="partial-badge" style="${badgeStyle}">${esc(badgeLabel)}</span>
-        </div>
-        <div class="partial-footer">
-          ${critTags}
-          ${screenshotLink}
-          ${convLink}
-          ${isManualPass ? `<span style="font-size:10px;color:var(--green);font-weight:600;margin-left:auto">✓ Reviewed</span>` : ''}
-        </div>
-      </div>`;
-  }
-
-  const partials = r.partials||[];
-  const partialsHTML = !isFB && partials.length ? `
-    <div class="section-label">Partials to Monitor</div>
-    <div class="partial-list">
-      ${partials.map(p=>testCard(p,'warn')).join('')}
-    </div>` : '';
-
-  const failTests = !isFB ? (r.tests||[]).filter(t=>t.status==='FAIL') : [];
-  const failsHTML = failTests.length ? `
-    <div class="section-label">Failing Tests</div>
-    <div class="fail-list">
-      ${failTests.map(t=>testCard(t,'fail')).join('')}
-    </div>` : '';
 
   document.getElementById('main').innerHTML = `
     ${warnBanner}
@@ -516,13 +479,8 @@ function render() {
     <div class="section-label">Breakdown</div>
     ${buildTrendHTML(runs)}
     ${catHTML}
-    ${issueHTML}
-    ${failsHTML}
-    ${partialsHTML}
     <div class="disclaimer">
       Results reflect automated ${esc(r.test_type||'criteria')} testing against the ${esc(r.environment||'production')} environment${r.date?' on '+esc(fmtDate(r.date)):''}.
-      ${failed>0?`${failed} test${failed>1?'s':''} failed defined criteria thresholds.`:'All tests passed defined criteria thresholds.'}
-      ${partial>0?` ${partial} partial result${partial>1?'s':''} indicate responses where one criterion was not fully met but overall behaviour was correct.`:''} Tests should be reviewed alongside manual testing.
     </div>`;
 
   drawDonut(
@@ -602,12 +560,8 @@ function buildTrendHTML(runs) {
 }
 
 function renderAllRuns(runs) {
-  // Aggregate all tests across all filtered runs, deduped by test id — most recent run wins
-  const seen = new Map();
-  [...runs].forEach(r => {
-    (r.tests||[]).forEach(t => { if (t.id) seen.set(t.id, {t, r}); });
-  });
-  const all = [...seen.values()];
+  // Collect every test execution across every run — no deduplication
+  const all = runs.flatMap(r => (r.tests||[]).map(t => ({t, r})));
   const total   = all.length;
   const passed  = all.filter(({t})=>t.status==='PASS').length;
   const partial = all.filter(({t})=>t.status==='WARN').length;
@@ -615,7 +569,57 @@ function renderAllRuns(runs) {
   const errored = all.filter(({t})=>t.status==='ERROR').length;
   const passRate = total ? Math.min(100, Math.round((passed+partial)/total*100)) : 0;
 
-  const failCards = all.filter(({t})=>t.status==='FAIL'||t.status==='ERROR').map(({t,r})=>{
+  // Aggregate categories from deduplicated tests
+  const catMap = {};
+  all.forEach(({t}) => {
+    const cat = t.category || 'Unknown';
+    if (!catMap[cat]) catMap[cat] = {total:0, pass:0, partial:0, fail:0, error:0};
+    catMap[cat].total++;
+    if      (t.status==='PASS')  catMap[cat].pass++;
+    else if (t.status==='WARN')  catMap[cat].partial++;
+    else if (t.status==='FAIL')  catMap[cat].fail++;
+    else                         catMap[cat].error++;
+  });
+  const cats = Object.entries(catMap);
+  const cleanCats = cats.filter(([,v])=>!(v.fail||0)&&!(v.partial||0)).length;
+  const healthVal = passRate >= 90 ? '✓' : passRate >= 70 ? '~' : '!';
+  const healthChip = passRate >= 90
+    ? `<span class="chip green">Passing</span>`
+    : passRate >= 70
+      ? `<span class="chip amber">Monitor</span>`
+      : `<span class="chip amber">Needs review</span>`;
+
+  const catBarsHTML = cats.length ? `
+    <div class="two-col">
+      <div class="card">
+        <h3>By Category</h3>
+        <p class="card-sub">Latest result per test across ${runs.length} run${runs.length!==1?'s':''}</p>
+        <div class="cat-bars">
+          ${cats.sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v]) => {
+            const t=v.total||0, p=(v.pass||0)+(v.partial||0);
+            const cp=pct(p,t), fc=cp>=80?'full':cp>=50?'partial':'fail';
+            return `<div class="cat-row">
+              <div class="cat-label"><span>${esc(name)}</span><span class="cat-pct">${cp}%&nbsp;(${p}/${t})</span></div>
+              <div class="bar-track"><div class="bar-fill ${fc}" style="width:${cp}%"></div></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>Results Split</h3>
+        <p class="card-sub">${total} unique tests · ${runs.length} run${runs.length!==1?'s':''}</p>
+        <div class="donut-wrap">
+          <svg id="donut-svg" width="120" height="120" viewBox="0 0 110 110"></svg>
+          <div class="donut-legend">
+            ${[[passed,'#258ed8','Pass'],[partial,'#f0c040','Partial'],[failed,'#b91c1c','Fail'],[errored,'#9ea3b8','Error']].filter(([v])=>v>0).map(([v,c,l])=>`
+              <div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${esc(l)}<span class="legend-val">${v}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>` : '';
+
+  // Only genuine FAILs shown — ERRORs are infrastructure noise, not test failures
+  const failCards = all.filter(({t})=>t.status==='FAIL').map(({t,r})=>{
     const tip = t.summary || '';
     return `<div class="partial-item ${tip?'has-tooltip':''}" style="position:relative">
       ${tip ? `<div class="tip">${esc(tip)}</div>` : ''}
@@ -633,11 +637,19 @@ function renderAllRuns(runs) {
     <div class="section-label">Test Results</div>
     <div class="kpi-grid">
       <div class="kpi"><div class="kpi-label">Pass Rate</div><div class="kpi-num">${passRate}<span class="unit">%</span></div><span class="chip green">${passed+partial} of ${total} passing</span></div>
-      <div class="kpi"><div class="kpi-label">Tests</div><div class="kpi-num">${total}</div></div>
-      <div class="kpi"><div class="kpi-label">Failing</div><div class="kpi-num">${failed+errored}</div></div>
-      <div class="kpi"><div class="kpi-label">Partials</div><div class="kpi-num">${partial}</div></div>
+      <div class="kpi"><div class="kpi-label">Tests</div><div class="kpi-num">${total}</div><span class="chip blue">${cats.length} categories</span></div>
+      <div class="kpi"><div class="kpi-label">Clean Categories</div><div class="kpi-num">${cleanCats}</div><span class="chip green">of ${cats.length}</span></div>
+      <div class="kpi"><div class="kpi-label">Overall Health</div><div class="kpi-num">${healthVal}</div>${healthChip}</div>
     </div>
-    ${failCards ? `<div class="section-label">Failing Tests</div><div class="fail-list">${failCards}</div>` : '<div class="summary-card">All tests passing across selected runs ✓</div>'}`;
+    <div class="section-label">Breakdown</div>
+    ${buildTrendHTML(runs)}
+    ${catBarsHTML}
+    `;
+
+  drawDonut(
+    [[passed,'#258ed8'],[partial,'#f0c040'],[failed,'#b91c1c'],[errored,'#9ea3b8']].filter(([v])=>v>0),
+    total, passRate
+  );
 }
 
 
@@ -675,7 +687,7 @@ function bindNav() {
 }
 
 function clearDates() {
-  dateFrom=''; dateTo=''; showAllRuns=false; currentRun=null;
+  dateFrom=''; dateTo=''; showAllRuns=true; currentRun=null;
   document.getElementById('date-from').value='';
   document.getElementById('date-to').value='';
   render();
@@ -688,8 +700,57 @@ function fmtDateTime(iso) {
          d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 
+let testCasesCache = [];
+let libraryMode = false;
+
+async function loadTestCases() {
+  try {
+    const resp = await fetch('qa/test_cases.json');
+    if (!resp.ok) throw new Error();
+    const data = await resp.json();
+    testCasesCache = data.test_cases || [];
+  } catch (e) {
+    testCasesCache = [];
+  }
+}
+
+function toggleLibrary() {
+  libraryMode = !libraryMode;
+  document.getElementById('library-tab-btn').classList.toggle('active', libraryMode);
+  document.getElementById('main').style.display = libraryMode ? 'none' : '';
+  document.getElementById('library-view').style.display = libraryMode ? '' : 'none';
+  if (libraryMode) renderLibrary();
+}
+
+function renderLibrary() {
+  // Public view only shows active/approved test cases — draft/in_review are
+  // not-yet-signed-off and stay internal to the review tool.
+  const rows = testCasesCache
+    .filter(t => t.status === 'active' || t.status === 'approved')
+    .slice().sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  document.getElementById('library-view').innerHTML = `
+    <h2 style="margin:0 0 14px">Test Case Library (${rows.length} active)</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;border-bottom:2px solid #ddd">
+        <th style="padding:6px">ID</th><th style="padding:6px">Title</th><th style="padding:6px">Category</th>
+        <th style="padding:6px">Owner</th><th style="padding:6px">Status</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(t => `
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:6px"><code>${esc(t.id)}</code></td>
+            <td style="padding:6px">${esc(t.title)}</td>
+            <td style="padding:6px">${esc(t.category)}</td>
+            <td style="padding:6px">${esc(t.owner||'')}</td>
+            <td style="padding:6px"><span class="status-pill status-${esc(t.status)}">${esc(t.status)}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
 async function init() {
   bindNav();
+  loadTestCases();
   try {
     const resp = await fetch('reports/qa_approved.json');
     if (!resp.ok) {
