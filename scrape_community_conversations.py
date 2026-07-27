@@ -119,13 +119,45 @@ async def _login(page, email, password, client_name):
             continue
 
     # This account manages multiple clients/brands — login lands on a
-    # client-selection page first. Click through to the target client.
+    # "Select Account" page first (rows: avatar, name, phone number, chevron).
+    # The visible text isn't itself clickable — walk up to the nearest
+    # button/link/role=button ancestor that wraps the whole row.
     await page.wait_for_load_state("load", timeout=15000)
     if "/client-selection" in page.url:
-        client_link = page.locator(f'text="{client_name}"').first
-        await client_link.click()
+        clicked = await _click_account_row(page, client_name)
+        if not clicked:
+            raise RuntimeError(
+                f"Could not find a clickable row for account '{client_name}' on /client-selection."
+            )
 
     await page.wait_for_url(f"{INBOX_URL_PREFIX}**", timeout=15000)
+
+
+async def _click_account_row(page, account_name):
+    """Clicks the account row on the Select Account page. The name text
+    sits inside a row (avatar + name + phone + chevron) that's wrapped in
+    some clickable ancestor — try common wrapper tags first, then fall
+    back to a forced click directly on the text."""
+    xpath_candidates = [
+        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::button[1]',
+        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::a[1]',
+        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::*[@role="button"][1]',
+    ]
+    for xp in xpath_candidates:
+        try:
+            el = page.locator(xp).first
+            if await el.is_visible(timeout=2000):
+                await el.click()
+                return True
+        except Exception:
+            continue
+
+    try:
+        text_el = page.get_by_text(account_name, exact=True).first
+        await text_el.click(force=True, timeout=2000)
+        return True
+    except Exception:
+        return False
 
 
 async def _find_first_visible(page, selectors):
