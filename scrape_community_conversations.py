@@ -236,13 +236,17 @@ async def _click_by_text(page, text, roles=("button", "link")):
         return False
 
 
-async def _find_first_visible(page, selectors):
+async def _find_first_visible(page, selectors, label=""):
     for selector in selectors:
         try:
+            count = await page.locator(selector).count()
             el = page.locator(selector).first
-            if await el.is_visible(timeout=2000):
+            visible = await el.is_visible(timeout=2000) if count > 0 else False
+            print(f"   [debug] {label} selector '{selector}': {count} match(es), first visible: {visible}")
+            if visible:
                 return el
-        except Exception:
+        except Exception as e:
+            print(f"   [debug] {label} selector '{selector}' raised: {e!r}")
             continue
     return None
 
@@ -250,7 +254,7 @@ async def _find_first_visible(page, selectors):
 async def _collect_rows_in_range(page, date_from, date_to, now):
     """Scrolls the conversation list (newest-first) and returns row locators
     + parsed timestamps for conversations within [date_from, date_to]."""
-    list_el = await _find_first_visible(page, CONVERSATION_LIST_SELECTORS)
+    list_el = await _find_first_visible(page, CONVERSATION_LIST_SELECTORS, label="conversation-list")
     if list_el is None:
         raise RuntimeError("Could not find the conversation list — selectors need updating.")
 
@@ -258,17 +262,23 @@ async def _collect_rows_in_range(page, date_from, date_to, now):
     seen_texts = set()
     stable_scrolls = 0
 
+    pass_num = 0
     while stable_scrolls < 3:
+        pass_num += 1
         rows = page.locator(", ".join(CONVERSATION_ROW_SELECTORS))
         count = await rows.count()
+        print(f"   [debug] scroll pass {pass_num}: {count} row(s) matched by CONVERSATION_ROW_SELECTORS")
         new_this_pass = 0
 
         for i in range(count):
             row = rows.nth(i)
             try:
                 row_text = await row.inner_text(timeout=1000)
-            except Exception:
+            except Exception as e:
+                print(f"   [debug] row {i} inner_text() raised: {e!r}")
                 continue
+            if i < 2 and pass_num == 1:
+                print(f"   [debug] sample row {i} text: {row_text!r}")
             if row_text in seen_texts:
                 continue
             seen_texts.add(row_text)
@@ -298,7 +308,7 @@ async def _scrape_thread(page, row):
     await row.click()
     await page.wait_for_timeout(1200)  # let the transcript pane load
 
-    pane = await _find_first_visible(page, TRANSCRIPT_PANE_SELECTORS)
+    pane = await _find_first_visible(page, TRANSCRIPT_PANE_SELECTORS, label="transcript-pane")
     if pane is None:
         return ""
     try:
