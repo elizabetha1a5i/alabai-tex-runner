@@ -57,6 +57,13 @@ TRANSCRIPT_PANE_SELECTORS = [
 # "ConvoBubble__StyledConvoBubbleRoot".
 CONVO_BUBBLE_SELECTOR = '[data-testid^="convo-bubble-"]'
 
+# Confirmed via DevTools: Tex's (outbound) bubbles are #1E90FF, the
+# customer's (inbound) bubbles are #E9E9EB — no stable class name
+# distinguishes direction, so background color is the only signal.
+TEX_BUBBLE_RGB = (30, 144, 255)
+CUSTOMER_BUBBLE_RGB = (233, 233, 235)
+_BUBBLE_COLOR_MAX_DISTANCE = 5000  # squared RGB distance tolerance
+
 # Explicitly never touched — documented here so it's obvious what NOT to add.
 NEVER_INTERACT_WITH = [
     'input[placeholder*="Send a message"]',
@@ -319,7 +326,57 @@ async def _collect_rows_in_range(page, date_from, date_to, now):
     return in_range
 
 
+_FIND_BUBBLE_COLOR_JS = """
+(el) => {
+    function findColor(node) {
+        if (!node) return null;
+        const style = getComputedStyle(node);
+        const bg = style.backgroundColor;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+        for (const child of node.children) {
+            const found = findColor(child);
+            if (found) return found;
+        }
+        return null;
+    }
+    return findColor(el);
+}
+"""
+
+
+async def _bubble_direction(bubble_locator):
+    """Classifies a message bubble as "Tex" or "Customer" by its rendered
+    background color — confirmed via DevTools as the only stable signal
+    (no distinguishing class name). Returns "Unknown" if the color doesn't
+    clearly match either, rather than guessing."""
+    try:
+        bg = await bubble_locator.evaluate(_FIND_BUBBLE_COLOR_JS)
+    except Exception:
+        return "Unknown"
+    if not bg:
+        return "Unknown"
+
+    match = re.match(r"rgba?\((\d+),\s*(\d+),\s*(\d+)", bg)
+    if not match:
+        return "Unknown"
+    rgb = tuple(int(x) for x in match.groups())
+
+    def sq_dist(a, b):
+        return sum((x - y) ** 2 for x, y in zip(a, b))
+
+    d_tex = sq_dist(rgb, TEX_BUBBLE_RGB)
+    d_customer = sq_dist(rgb, CUSTOMER_BUBBLE_RGB)
+    if d_tex <= _BUBBLE_COLOR_MAX_DISTANCE and d_tex < d_customer:
+        return "Tex"
+    if d_customer <= _BUBBLE_COLOR_MAX_DISTANCE and d_customer < d_tex:
+        return "Customer"
+    return "Unknown"
+
+
 async def _scrape_thread(page, row):
+    """Returns (transcript_text, no_reply). transcript_text is labeled
+    "Customer: .../Tex: ..." per line; no_reply is True if the conversation
+    ends on the customer's turn with no Tex follow-up."""
     await row.click()
     await page.wait_for_timeout(1200)  # let the transcript pane load
 
@@ -327,23 +384,30 @@ async def _scrape_thread(page, row):
     bubble_count = await bubbles.count()
     print(f"   [debug] {CONVO_BUBBLE_SELECTOR}: {bubble_count} bubble(s)")
     if bubble_count > 0:
-        lines = []
+        labeled_lines = []
         for i in range(bubble_count):
+            bubble = bubbles.nth(i)
             try:
-                lines.append(await bubbles.nth(i).inner_text(timeout=1000))
+                text = await bubble.inner_text(timeout=1000)
             except Exception:
                 continue
-        if lines:
-            return "\n".join(lines)
+            if not text.strip():
+                continue
+            direction = await _bubble_direction(bubble)
+            labeled_lines.append(f"{direction}: {text}")
+        if labeled_lines:
+            no_reply = labeled_lines[-1].startswith("Customer:")
+            return "\n".join(labeled_lines), no_reply
 
-    # Fall back to whatever the whole pane's text looks like.
+    # Fall back to whatever the whole pane's text looks like — no direction
+    # info available this way, so no_reply can't be determined (defaults False).
     pane = await _find_first_visible(page, TRANSCRIPT_PANE_SELECTORS, label="transcript-pane")
     if pane is None:
-        return ""
+        return "", False
     try:
-        return await pane.inner_text(timeout=3000)
+        return await pane.inner_text(timeout=3000), False
     except Exception:
-        return ""
+        return "", False
 
 
 async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_name: str, headed: bool = False):
@@ -375,15 +439,17 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_n
 
         for i, (row, occurred_at, row_text, row_id, sender) in enumerate(rows, 1):
             print(f"   Reading {i}/{len(rows)} ({sender})...")
-            transcript_text = await _scrape_thread(page, row)
+            transcript_text, no_reply = await _scrape_thread(page, row)
             if not transcript_text:
                 print(f"   ⚠️  Could not read transcript for {sender}, skipping.")
                 continue
+            print(f"   [debug] no_reply={no_reply}")
             conversations.append({
                 "external_id": row_id or f"{sender}-{occurred_at.isoformat()}",
                 "customer_ref": sender,
                 "occurred_at": occurred_at.isoformat(),
                 "transcript_text": transcript_text,
+                "no_reply": no_reply,
             })
 
         await browser.close()

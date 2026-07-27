@@ -29,6 +29,9 @@ from datetime import datetime
 
 from google import genai
 
+from dynamic_evaluator import run_dynamic_evaluation
+from prompt_loader import load_prompts_for_category
+
 # Column names this script will look for, in priority order, per logical
 # field. Adjust once a real Community.com export is available.
 CSV_COLUMN_ALIASES = {
@@ -74,6 +77,44 @@ def _pick_gemini_model(client):
     return _selected_model
 
 
+def _load_recipe_kb():
+    """Loads (prompt_content, recipes) for the rule-alignment evaluation,
+    reusing tex_qa_test_runner_prod.py's Google Sheets/local-kb loaders
+    exactly as the QA test runner does. Imported lazily so the CSV-only
+    path doesn't require playwright/google-api-python-client to be
+    installed if rule-scoring isn't being used. Returns (None, []) if
+    Google credentials aren't available — rule-scoring is skipped in that
+    case but CSAT scoring still proceeds."""
+    try:
+        from tex_qa_test_runner_prod import get_google_services, load_recipes
+    except Exception as e:
+        print(f"⚠️  Could not import QA runner for rule-scoring: {e}")
+        return None, []
+
+    _, sheets_service = get_google_services()
+    if sheets_service is None:
+        print("⚠️  No Google credentials — skipping rule-based QA scoring (CSAT scoring still runs).")
+        return None, []
+
+    prompt_content, prompt_error = load_prompts_for_category("General")
+    if prompt_error:
+        print(f"⚠️  Could not load Tex's prompt instructions: {prompt_error}")
+
+    recipes = load_recipes(sheets_service)
+    return prompt_content, recipes
+
+
+def _compute_no_reply(transcript_text):
+    """True if the conversation ends on the customer's turn with no Tex
+    follow-up — a critical failure (Tex went silent). Expects lines
+    labeled "Customer: ..."/"Tex: ..." (see load_conversations_from_csv
+    and scrape_community_conversations.py's _scrape_thread)."""
+    lines = [l for l in transcript_text.split("\n") if l.strip()]
+    if not lines:
+        return False
+    return lines[-1].strip().lower().startswith("customer:")
+
+
 def _find_column(fieldnames, aliases):
     lower = {f.lower(): f for f in fieldnames}
     for alias in aliases:
@@ -106,8 +147,19 @@ def load_conversations_from_csv(csv_path):
     for thread_id, rows in threads.items():
         lines = []
         for row in rows:
-            direction = row.get(cols["direction"], "") if cols["direction"] else ""
-            prefix = f"{direction}: " if direction else ""
+            raw_direction = (row.get(cols["direction"], "") if cols["direction"] else "").strip().lower()
+            # Normalize to the same "Customer:"/"Tex:" labels used by
+            # scrape_community_conversations.py, so both sources produce the
+            # same transcript shape (needed for _compute_no_reply and the
+            # rule-alignment evaluator).
+            if raw_direction in ("inbound", "customer", "user", "from_customer"):
+                prefix = "Customer: "
+            elif raw_direction in ("outbound", "tex", "agent", "from_tex"):
+                prefix = "Tex: "
+            elif raw_direction:
+                prefix = f"{raw_direction}: "
+            else:
+                prefix = ""
             lines.append(f"{prefix}{row.get(cols['message'], '')}")
         timestamp = rows[0].get(cols["timestamp"]) if cols["timestamp"] else None
         customer_ref = rows[0].get(cols["customer_ref"]) if cols["customer_ref"] else None
@@ -174,6 +226,13 @@ def score_and_push(conversations, source_label):
     model = _pick_gemini_model(client)
     print(f"🤖 Gemini model: {model}")
 
+    # Same rule-based QA scoring used for synthetic test cases
+    # (evaluation_guidelines.md: brand-fact accuracy, PPI handling, persona,
+    # no-proactive-mocktail, etc.), applied here to real conversations.
+    # Loaded once, not per conversation. Degrades gracefully (rule-scoring
+    # skipped, CSAT scoring still runs) if Google credentials are unavailable.
+    prompt_content, recipes = _load_recipe_kb()
+
     scored = []
     for i, conv in enumerate(conversations, 1):
         print(f"   Scoring {i}/{len(conversations)} ({conv['external_id']})...")
@@ -182,6 +241,36 @@ def score_and_push(conversations, source_label):
         except Exception as e:
             print(f"   ⚠️  Could not score conversation {conv['external_id']}: {e}")
             continue
+
+        no_reply = conv.get("no_reply")
+        if no_reply is None:
+            no_reply = _compute_no_reply(conv["transcript_text"])
+
+        qa_status = None
+        qa_alignment_score = None
+        qa_issues = None
+        if prompt_content is not None:
+            try:
+                # test_description is normally a synthetic test's pre-written
+                # pass/fail criteria — for a real conversation, the transcript
+                # itself is passed instead, so Gemini infers context/success
+                # criteria/importance directly from what actually happened.
+                qa_result = run_dynamic_evaluation(
+                    conversation_text=conv["transcript_text"],
+                    test_description=conv["transcript_text"],
+                    test_name=conv.get("customer_ref") or conv["external_id"],
+                    test_category="General",
+                    prompt_content=prompt_content,
+                    recipes=recipes,
+                    client=client,
+                    model=model,
+                )
+                qa_status = qa_result.get("status")
+                qa_alignment_score = qa_result.get("alignment_score")
+                qa_issues = qa_result.get("all_failed_criteria") or None
+            except Exception as e:
+                print(f"   ⚠️  Rule-based QA scoring failed for {conv['external_id']}: {e}")
+
         scored.append({
             **conv,
             "csat_score": result.get("csat_score"),
@@ -189,6 +278,10 @@ def score_and_push(conversations, source_label):
             "resolved": result.get("resolved"),
             "key_themes": ", ".join(result["key_themes"]) if isinstance(result.get("key_themes"), list) else result.get("key_themes"),
             "summary": result.get("summary"),
+            "no_reply": no_reply,
+            "qa_status": qa_status,
+            "qa_alignment_score": qa_alignment_score,
+            "qa_issues": qa_issues,
         })
 
     if not scored:

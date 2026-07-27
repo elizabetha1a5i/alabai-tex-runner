@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright google-genai
+          pip install playwright google-genai google-auth google-auth-oauthlib google-api-python-client
           playwright install chromium --with-deps
 
       - name: Scrape Community.com conversations
@@ -43,6 +43,7 @@ jobs:
           COMMUNITY_EMAIL: ${{ secrets.COMMUNITY_EMAIL }}
           COMMUNITY_PASSWORD: ${{ secrets.COMMUNITY_PASSWORD }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           EVAL_DASHBOARD_URL: ${{ secrets.EVAL_DASHBOARD_URL }}
           EVAL_DASHBOARD_KEY: ${{ secrets.EVAL_DASHBOARD_KEY }}
           DATE_FROM: ${{ github.event.inputs.date_from }}
