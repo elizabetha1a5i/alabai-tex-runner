@@ -261,7 +261,7 @@ async def _scrape_thread(page, row):
         return ""
 
 
-async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_name: str):
+async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_name: str, headed: bool = False):
     email = os.environ.get("COMMUNITY_EMAIL")
     password = os.environ.get("COMMUNITY_PASSWORD")
     if not email or not password:
@@ -271,7 +271,7 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_n
     conversations = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=not headed, slow_mo=300 if headed else 0)
         page = await browser.new_page()
 
         print(f"🔐 Logging into Community.com (client: {client_name})...")
@@ -314,12 +314,13 @@ def main():
     parser.add_argument("--to", dest="date_to", required=True, help="End date, YYYY-MM-DD")
     parser.add_argument("--dry-run", action="store_true", help="List conversations in range without opening/scoring them")
     parser.add_argument("--client", default="Weber Ranch", help="Client/brand name to select after login, if a client-selection step appears")
+    parser.add_argument("--headed", action="store_true", help="Show the browser window (for local debugging — don't use in CI)")
     args = parser.parse_args()
 
     date_from = datetime.strptime(args.date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     date_to = datetime.strptime(args.date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
 
-    conversations = asyncio.run(scrape(date_from, date_to, args.dry_run, args.client))
+    conversations = asyncio.run(scrape(date_from, date_to, args.dry_run, args.client, args.headed))
 
     if args.dry_run:
         print("\n✅ Dry run complete — no conversations opened or scored.")
