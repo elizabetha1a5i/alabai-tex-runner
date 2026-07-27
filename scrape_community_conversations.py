@@ -160,12 +160,19 @@ async def _click_account_row(page, account_name):
     account name is enough and doesn't depend on the hashed CSS class
     (ClientSelection__StyledButton-hmMRXj, which can change on redeploy)."""
     try:
-        btn = page.get_by_role("button", name=account_name).first
-        if await btn.is_visible(timeout=3000):
-            await btn.click()
-            return True
-    except Exception:
-        pass
+        role_matches = page.get_by_role("button", name=account_name)
+        count = await role_matches.count()
+        print(f"   [debug] get_by_role('button', name='{account_name}') matched {count} element(s)")
+        if count > 0:
+            btn = role_matches.first
+            visible = await btn.is_visible(timeout=3000)
+            print(f"   [debug] first match visible: {visible}")
+            if visible:
+                await btn.click(timeout=5000)
+                print("   [debug] .click() on role match completed without raising")
+                return True
+    except Exception as e:
+        print(f"   [debug] get_by_role attempt raised: {e!r}")
 
     # Fallback in case the role/name lookup doesn't match (e.g. wording changes).
     xpath_candidates = [
@@ -175,18 +182,26 @@ async def _click_account_row(page, account_name):
     ]
     for xp in xpath_candidates:
         try:
-            el = page.locator(xp).first
-            if await el.is_visible(timeout=2000):
-                await el.click()
+            el = page.locator(xp)
+            count = await el.count()
+            print(f"   [debug] xpath candidate matched {count} element(s): {xp}")
+            if count > 0 and await el.first.is_visible(timeout=2000):
+                await el.first.click(timeout=5000)
+                print("   [debug] .click() on xpath match completed without raising")
                 return True
-        except Exception:
+        except Exception as e:
+            print(f"   [debug] xpath candidate raised: {e!r}")
             continue
 
     try:
-        text_el = page.get_by_text(account_name, exact=True).first
-        await text_el.click(force=True, timeout=2000)
+        text_el = page.get_by_text(account_name, exact=True)
+        count = await text_el.count()
+        print(f"   [debug] get_by_text matched {count} element(s)")
+        await text_el.first.click(force=True, timeout=5000)
+        print("   [debug] forced click on text match completed without raising")
         return True
-    except Exception:
+    except Exception as e:
+        print(f"   [debug] forced text click raised: {e!r}")
         return False
 
 
