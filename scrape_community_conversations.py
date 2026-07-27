@@ -86,7 +86,7 @@ def _parse_relative_timestamp(label: str, now: datetime) -> datetime:
     return now  # unrecognized format — treat as "now" so it isn't skipped silently
 
 
-async def _login(page, email, password):
+async def _login(page, email, password, client_name):
     await page.goto(LOGIN_URL)
 
     for selector in EMAIL_INPUT_SELECTORS:
@@ -117,6 +117,13 @@ async def _login(page, email, password):
                 break
         except Exception:
             continue
+
+    # This account manages multiple clients/brands — login lands on a
+    # client-selection page first. Click through to the target client.
+    await page.wait_for_load_state("load", timeout=15000)
+    if "/client-selection" in page.url:
+        client_link = page.locator(f'text="{client_name}"').first
+        await client_link.click()
 
     await page.wait_for_url(f"{INBOX_URL_PREFIX}**", timeout=15000)
 
@@ -192,7 +199,7 @@ async def _scrape_thread(page, row):
         return ""
 
 
-async def scrape(date_from: datetime, date_to: datetime, dry_run: bool):
+async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_name: str):
     email = os.environ.get("COMMUNITY_EMAIL")
     password = os.environ.get("COMMUNITY_PASSWORD")
     if not email or not password:
@@ -205,8 +212,8 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool):
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
 
-        print("🔐 Logging into Community.com...")
-        await _login(page, email, password)
+        print(f"🔐 Logging into Community.com (client: {client_name})...")
+        await _login(page, email, password, client_name)
         print("✅ Logged in.")
 
         print(f"📜 Scrolling conversation list for {date_from.date()} → {date_to.date()}...")
@@ -244,12 +251,13 @@ def main():
     parser.add_argument("--from", dest="date_from", required=True, help="Start date, YYYY-MM-DD")
     parser.add_argument("--to", dest="date_to", required=True, help="End date, YYYY-MM-DD")
     parser.add_argument("--dry-run", action="store_true", help="List conversations in range without opening/scoring them")
+    parser.add_argument("--client", default="Weber Ranch", help="Client/brand name to select after login, if a client-selection step appears")
     args = parser.parse_args()
 
     date_from = datetime.strptime(args.date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     date_to = datetime.strptime(args.date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
 
-    conversations = asyncio.run(scrape(date_from, date_to, args.dry_run))
+    conversations = asyncio.run(scrape(date_from, date_to, args.dry_run, args.client))
 
     if args.dry_run:
         print("\n✅ Dry run complete — no conversations opened or scored.")
