@@ -119,18 +119,36 @@ async def _login(page, email, password, client_name):
             continue
 
     # This account manages multiple clients/brands — login lands on a
-    # "Select Account" page first (rows: avatar, name, phone number, chevron).
-    # The visible text isn't itself clickable — walk up to the nearest
-    # button/link/role=button ancestor that wraps the whole row.
+    # "Select Account" page first (confirmed via DevTools: rows are real
+    # <button role="button"> elements).
     await page.wait_for_load_state("load", timeout=15000)
     if "/client-selection" in page.url:
         clicked = await _click_account_row(page, client_name)
+        print(f"   [debug] clicked account row: {clicked}, url right after click: {page.url}")
         if not clicked:
             raise RuntimeError(
                 f"Could not find a clickable row for account '{client_name}' on /client-selection."
             )
 
-    await page.wait_for_url(f"{INBOX_URL_PREFIX}**", timeout=15000)
+    # This app appears to be a client-side-routed SPA — clicking the account
+    # row may change the URL via history.pushState without firing a 'load'
+    # event, which page.wait_for_url()'s default wait_until="load" needs.
+    # Poll page.url() directly instead, which works for both cases.
+    deadline = asyncio.get_event_loop().time() + 15
+    while asyncio.get_event_loop().time() < deadline:
+        if page.url.startswith(INBOX_URL_PREFIX):
+            return
+        await page.wait_for_timeout(500)
+
+    # Still not on the inbox — save a screenshot + full HTML for debugging
+    # instead of failing blind again.
+    await page.screenshot(path="debug_after_account_click.png", full_page=True)
+    with open("debug_after_account_click.html", "w", encoding="utf-8") as f:
+        f.write(await page.content())
+    raise RuntimeError(
+        f"Never reached {INBOX_URL_PREFIX} after clicking account row. "
+        f"Still at: {page.url}. See debug_after_account_click.png/.html artifacts."
+    )
 
 
 async def _click_account_row(page, account_name):
