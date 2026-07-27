@@ -134,10 +134,22 @@ async def _login(page, email, password, client_name):
 
 
 async def _click_account_row(page, account_name):
-    """Clicks the account row on the Select Account page. The name text
-    sits inside a row (avatar + name + phone + chevron) that's wrapped in
-    some clickable ancestor — try common wrapper tags first, then fall
-    back to a forced click directly on the text."""
+    """Clicks the account row on the Select Account page. Confirmed via
+    DevTools: each row is a real <button> (role=button) whose accessible
+    name is "<initials> <account name> <phone>", e.g.
+    "WR Weber Ranch +1 (940) 400-1902" — get_by_role does a substring,
+    case-insensitive match on name by default, so matching on just the
+    account name is enough and doesn't depend on the hashed CSS class
+    (ClientSelection__StyledButton-hmMRXj, which can change on redeploy)."""
+    try:
+        btn = page.get_by_role("button", name=account_name).first
+        if await btn.is_visible(timeout=3000):
+            await btn.click()
+            return True
+    except Exception:
+        pass
+
+    # Fallback in case the role/name lookup doesn't match (e.g. wording changes).
     xpath_candidates = [
         f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::button[1]',
         f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::a[1]',
