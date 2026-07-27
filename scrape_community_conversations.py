@@ -45,7 +45,16 @@ LOGIN_BUTTON_SELECTORS = ['button:has-text("Login")']
 CONVERSATION_LIST_SELECTORS = ['[class*="conversation-list"]', '[class*="MessageList"]', 'main >> nth=0']
 CONVERSATION_ROW_SELECTORS = ['[class*="conversation-row"]', '[class*="MessageListItem"]']
 
-TRANSCRIPT_PANE_SELECTORS = ['[class*="transcript"]', '[class*="MessageThread"]', 'main >> nth=1']
+TRANSCRIPT_PANE_SELECTORS = [
+    '[class*="Convo__StyledMain"]',  # confirmed via DevTools: wraps the bubble thread
+    '[class*="transcript"]',
+    '[class*="MessageThread"]',
+    'main >> nth=1',
+]
+# Individual message bubbles within the transcript pane — confirmed via
+# DevTools: data-testid="convo-bubble-<uuid>", class starts with
+# "ConvoBubble__StyledConvoBubbleRoot".
+CONVO_BUBBLE_SELECTOR = '[data-testid^="convo-bubble-"]'
 
 # Explicitly never touched — documented here so it's obvious what NOT to add.
 NEVER_INTERACT_WITH = [
@@ -308,6 +317,20 @@ async def _scrape_thread(page, row):
     await row.click()
     await page.wait_for_timeout(1200)  # let the transcript pane load
 
+    bubbles = page.locator(CONVO_BUBBLE_SELECTOR)
+    bubble_count = await bubbles.count()
+    print(f"   [debug] {CONVO_BUBBLE_SELECTOR}: {bubble_count} bubble(s)")
+    if bubble_count > 0:
+        lines = []
+        for i in range(bubble_count):
+            try:
+                lines.append(await bubbles.nth(i).inner_text(timeout=1000))
+            except Exception:
+                continue
+        if lines:
+            return "\n".join(lines)
+
+    # Fall back to whatever the whole pane's text looks like.
     pane = await _find_first_visible(page, TRANSCRIPT_PANE_SELECTORS, label="transcript-pane")
     if pane is None:
         return ""
