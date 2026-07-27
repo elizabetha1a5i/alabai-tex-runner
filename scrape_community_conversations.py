@@ -294,15 +294,19 @@ async def _collect_rows_in_range(page, date_from, date_to, now):
             seen_texts.add(row_text)
             new_this_pass += 1
 
-            timestamp_match = re.search(r"\n(.+?)\n", row_text)
-            label = timestamp_match.group(1) if timestamp_match else ""
+            # Confirmed row shape (DevTools sample): avatar initials, then
+            # name, then timestamp, then message preview — e.g.
+            # "EA\nelizabeth alabi\n9:29 AM\nDo you know what Love Island is?"
+            lines = [l.strip() for l in row_text.split("\n") if l.strip()]
+            sender = lines[1] if len(lines) > 1 else (lines[0] if lines else "?")
+            label = lines[2] if len(lines) > 2 else ""
             occurred_at = _parse_relative_timestamp(label, now)
 
             if occurred_at < date_from:
                 return in_range  # newest-first list — past this point, all older
             if occurred_at <= date_to:
                 row_id = await row.get_attribute("id")
-                in_range.append((row, occurred_at, row_text, row_id))
+                in_range.append((row, occurred_at, row_text, row_id, sender))
 
         if new_this_pass == 0:
             stable_scrolls += 1
@@ -364,14 +368,12 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_n
         print(f"   Found {len(rows)} conversation(s) in range.")
 
         if dry_run:
-            for _, occurred_at, row_text, row_id in rows:
-                sender = row_text.split("\n")[0] if row_text else "?"
+            for _, occurred_at, row_text, row_id, sender in rows:
                 print(f"   [dry-run] {occurred_at.isoformat()} — {sender} (id={row_id})")
             await browser.close()
             return []
 
-        for i, (row, occurred_at, row_text, row_id) in enumerate(rows, 1):
-            sender = row_text.split("\n")[0] if row_text else "?"
+        for i, (row, occurred_at, row_text, row_id, sender) in enumerate(rows, 1):
             print(f"   Reading {i}/{len(rows)} ({sender})...")
             transcript_text = await _scrape_thread(page, row)
             if not transcript_text:
