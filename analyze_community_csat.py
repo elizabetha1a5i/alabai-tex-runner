@@ -39,7 +39,13 @@ CSV_COLUMN_ALIASES = {
     "direction": ["direction", "sender", "from_type"],  # inbound/outbound if present
 }
 
-_PREFERRED_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+_PREFERRED_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash-001",
+    "gemini-1.5-flash",
+]
 _selected_model = None
 
 
