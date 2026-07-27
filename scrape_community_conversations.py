@@ -120,15 +120,38 @@ async def _login(page, email, password, client_name):
 
     # This account manages multiple clients/brands — login lands on a
     # "Select Account" page first (confirmed via DevTools: rows are real
-    # <button role="button"> elements).
-    await page.wait_for_load_state("load", timeout=15000)
-    if "/client-selection" in page.url:
+    # <button role="button"> elements). This app is client-side-routed, so
+    # the URL changes via history.pushState with no reliable 'load' event —
+    # poll for either destination instead of checking page.url immediately
+    # (checking too early was silently skipping the click entirely, since
+    # the redirect from /login hadn't happened yet).
+    route_deadline = asyncio.get_event_loop().time() + 15
+    routed_to = None
+    while asyncio.get_event_loop().time() < route_deadline:
+        if "/client-selection" in page.url:
+            routed_to = "client-selection"
+            break
+        if page.url.startswith(INBOX_URL_PREFIX):
+            routed_to = "inbox"
+            break
+        await page.wait_for_timeout(300)
+    print(f"   [debug] post-login routed_to={routed_to}, url={page.url}")
+
+    if routed_to == "client-selection":
         clicked = await _click_account_row(page, client_name)
         print(f"   [debug] clicked account row: {clicked}, url right after click: {page.url}")
         if not clicked:
             raise RuntimeError(
                 f"Could not find a clickable row for account '{client_name}' on /client-selection."
             )
+    elif routed_to is None:
+        await page.screenshot(path="debug_after_login.png", full_page=True)
+        with open("debug_after_login.html", "w", encoding="utf-8") as f:
+            f.write(await page.content())
+        raise RuntimeError(
+            f"Never routed to /client-selection or {INBOX_URL_PREFIX} after login. "
+            f"Still at: {page.url}. See debug_after_login.png/.html artifacts — login form/button selectors may be wrong."
+        )
 
     # This app appears to be a client-side-routed SPA — clicking the account
     # row may change the URL via history.pushState without firing a 'load'

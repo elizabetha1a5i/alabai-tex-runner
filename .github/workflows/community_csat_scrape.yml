@@ -64,5 +64,7 @@ jobs:
           path: |
             debug_after_account_click.png
             debug_after_account_click.html
+            debug_after_login.png
+            debug_after_login.html
           retention-days: 7
           if-no-files-found: ignore
