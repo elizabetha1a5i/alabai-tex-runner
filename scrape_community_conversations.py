@@ -42,8 +42,9 @@ EMAIL_INPUT_SELECTORS = ['input[placeholder="Email"]', 'input[type="email"]']
 PASSWORD_INPUT_SELECTORS = ['input[placeholder="Password"]', 'input[type="password"]']
 LOGIN_BUTTON_SELECTORS = ['button:has-text("Login")']
 
-CONVERSATION_LIST_SELECTORS = ['[class*="conversation-list"]', '[class*="MessageList"]', 'main >> nth=0']
-CONVERSATION_ROW_SELECTORS = ['[class*="conversation-row"]', '[class*="MessageListItem"]']
+CONVERSATION_LIST_SELECTORS = ['[data-testid="inbox-list-main"]', '[class*="conversation-list"]', '[class*="MessageList"]', 'main >> nth=0']
+# Confirmed via DevTools: each row is <button data-testid="inbox-item" id="<uuid>">.
+CONVERSATION_ROW_SELECTORS = ['[data-testid="inbox-item"]', '[class*="conversation-row"]', '[class*="MessageListItem"]']
 
 TRANSCRIPT_PANE_SELECTORS = [
     '[class*="Convo__StyledMain"]',  # confirmed via DevTools: wraps the bubble thread
@@ -300,7 +301,8 @@ async def _collect_rows_in_range(page, date_from, date_to, now):
             if occurred_at < date_from:
                 return in_range  # newest-first list — past this point, all older
             if occurred_at <= date_to:
-                in_range.append((row, occurred_at, row_text))
+                row_id = await row.get_attribute("id")
+                in_range.append((row, occurred_at, row_text, row_id))
 
         if new_this_pass == 0:
             stable_scrolls += 1
@@ -362,13 +364,13 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_n
         print(f"   Found {len(rows)} conversation(s) in range.")
 
         if dry_run:
-            for _, occurred_at, row_text in rows:
+            for _, occurred_at, row_text, row_id in rows:
                 sender = row_text.split("\n")[0] if row_text else "?"
-                print(f"   [dry-run] {occurred_at.isoformat()} — {sender}")
+                print(f"   [dry-run] {occurred_at.isoformat()} — {sender} (id={row_id})")
             await browser.close()
             return []
 
-        for i, (row, occurred_at, row_text) in enumerate(rows, 1):
+        for i, (row, occurred_at, row_text, row_id) in enumerate(rows, 1):
             sender = row_text.split("\n")[0] if row_text else "?"
             print(f"   Reading {i}/{len(rows)} ({sender})...")
             transcript_text = await _scrape_thread(page, row)
@@ -376,7 +378,7 @@ async def scrape(date_from: datetime, date_to: datetime, dry_run: bool, client_n
                 print(f"   ⚠️  Could not read transcript for {sender}, skipping.")
                 continue
             conversations.append({
-                "external_id": f"{sender}-{occurred_at.isoformat()}",
+                "external_id": row_id or f"{sender}-{occurred_at.isoformat()}",
                 "customer_ref": sender,
                 "occurred_at": occurred_at.isoformat(),
                 "transcript_text": transcript_text,
