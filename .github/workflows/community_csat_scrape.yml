@@ -1,0 +1,57 @@
+name: Community.com CSAT Scrape (read-only)
+
+# Manual trigger only for now — selectors are unverified against the live
+# site (see scrape_community_conversations.py). Add a `schedule:` trigger
+# once a few workflow_dispatch runs are confirmed clean.
+on:
+  workflow_dispatch:
+    inputs:
+      date_from:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+      date_to:
+        description: "End date (YYYY-MM-DD)"
+        required: true
+      dry_run:
+        description: "Dry run — list conversations in range without opening/scoring them"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright google-genai
+          playwright install chromium --with-deps
+
+      - name: Scrape Community.com conversations
+        env:
+          COMMUNITY_EMAIL: ${{ secrets.COMMUNITY_EMAIL }}
+          COMMUNITY_PASSWORD: ${{ secrets.COMMUNITY_PASSWORD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EVAL_DASHBOARD_URL: ${{ secrets.EVAL_DASHBOARD_URL }}
+          EVAL_DASHBOARD_KEY: ${{ secrets.EVAL_DASHBOARD_KEY }}
+          DATE_FROM: ${{ github.event.inputs.date_from }}
+          DATE_TO: ${{ github.event.inputs.date_to }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          DRY_RUN_ARG=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_RUN_ARG="--dry-run"
+          fi
+          python scrape_community_conversations.py --from "${DATE_FROM}" --to "${DATE_TO}" ${DRY_RUN_ARG}
