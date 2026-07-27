@@ -138,7 +138,7 @@ async def _login(page, email, password, client_name):
     print(f"   [debug] post-login routed_to={routed_to}, url={page.url}")
 
     if routed_to == "client-selection":
-        clicked = await _click_account_row(page, client_name)
+        clicked = await _click_by_text(page, client_name)
         print(f"   [debug] clicked account row: {clicked}, url right after click: {page.url}")
         if not clicked:
             raise RuntimeError(
@@ -153,14 +153,21 @@ async def _login(page, email, password, client_name):
             f"Still at: {page.url}. See debug_after_login.png/.html artifacts — login form/button selectors may be wrong."
         )
 
-    # This app appears to be a client-side-routed SPA — clicking the account
-    # row may change the URL via history.pushState without firing a 'load'
-    # event, which page.wait_for_url()'s default wait_until="load" needs.
-    # Poll page.url() directly instead, which works for both cases.
-    deadline = asyncio.get_event_loop().time() + 15
+    # Selecting an account (or logging straight in for a single-account user)
+    # lands on the account's Home dashboard, not Messages directly — that
+    # only happens when the login URL carries a next=/messages/... param,
+    # which ours doesn't. Click "Messages" in the sidebar nav to get there.
+    # Poll page.url() directly rather than wait_for_url(): this is a
+    # client-side-routed SPA, so navigation may happen via history.pushState
+    # without a 'load' event.
+    messages_clicked = False
+    deadline = asyncio.get_event_loop().time() + 20
     while asyncio.get_event_loop().time() < deadline:
         if page.url.startswith(INBOX_URL_PREFIX):
             return
+        if not messages_clicked:
+            messages_clicked = await _click_by_text(page, "Messages")
+            print(f"   [debug] clicked Messages nav: {messages_clicked}, url: {page.url}")
         await page.wait_for_timeout(500)
 
     # Still not on the inbox — save a screenshot + full HTML for debugging
@@ -169,39 +176,40 @@ async def _login(page, email, password, client_name):
     with open("debug_after_account_click.html", "w", encoding="utf-8") as f:
         f.write(await page.content())
     raise RuntimeError(
-        f"Never reached {INBOX_URL_PREFIX} after clicking account row. "
+        f"Never reached {INBOX_URL_PREFIX} after account selection / Messages nav click. "
         f"Still at: {page.url}. See debug_after_account_click.png/.html artifacts."
     )
 
 
-async def _click_account_row(page, account_name):
-    """Clicks the account row on the Select Account page. Confirmed via
-    DevTools: each row is a real <button> (role=button) whose accessible
-    name is "<initials> <account name> <phone>", e.g.
-    "WR Weber Ranch +1 (940) 400-1902" — get_by_role does a substring,
-    case-insensitive match on name by default, so matching on just the
-    account name is enough and doesn't depend on the hashed CSS class
-    (ClientSelection__StyledButton-hmMRXj, which can change on redeploy)."""
-    try:
-        role_matches = page.get_by_role("button", name=account_name)
-        count = await role_matches.count()
-        print(f"   [debug] get_by_role('button', name='{account_name}') matched {count} element(s)")
-        if count > 0:
-            btn = role_matches.first
-            visible = await btn.is_visible(timeout=3000)
-            print(f"   [debug] first match visible: {visible}")
-            if visible:
-                await btn.click(timeout=5000)
-                print("   [debug] .click() on role match completed without raising")
-                return True
-    except Exception as e:
-        print(f"   [debug] get_by_role attempt raised: {e!r}")
+async def _click_by_text(page, text, roles=("button", "link")):
+    """Generic clicker: find an interactive element whose accessible name
+    contains `text` (tries each role in `roles` first, e.g. button/link),
+    falling back to an xpath ancestor search and finally a forced click on
+    the raw text node. Verbose [debug] prints so failures are diagnosable
+    without another guess-and-CI-run cycle. Used both for the account-
+    selection row and the "Messages" sidebar nav link — same underlying
+    problem (find the clickable element for some visible text)."""
+    for role in roles:
+        try:
+            role_matches = page.get_by_role(role, name=text)
+            count = await role_matches.count()
+            print(f"   [debug] get_by_role('{role}', name='{text}') matched {count} element(s)")
+            if count > 0:
+                el = role_matches.first
+                visible = await el.is_visible(timeout=3000)
+                print(f"   [debug] first match visible: {visible}")
+                if visible:
+                    await el.click(timeout=5000)
+                    print(f"   [debug] .click() on {role} match completed without raising")
+                    return True
+        except Exception as e:
+            print(f"   [debug] get_by_role('{role}', ...) attempt raised: {e!r}")
 
     # Fallback in case the role/name lookup doesn't match (e.g. wording changes).
     xpath_candidates = [
-        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::button[1]',
-        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::a[1]',
-        f'xpath=//*[contains(normalize-space(text()), "{account_name}")]/ancestor::*[@role="button"][1]',
+        f'xpath=//*[contains(normalize-space(text()), "{text}")]/ancestor::button[1]',
+        f'xpath=//*[contains(normalize-space(text()), "{text}")]/ancestor::a[1]',
+        f'xpath=//*[contains(normalize-space(text()), "{text}")]/ancestor::*[@role="button"][1]',
     ]
     for xp in xpath_candidates:
         try:
@@ -217,7 +225,7 @@ async def _click_account_row(page, account_name):
             continue
 
     try:
-        text_el = page.get_by_text(account_name, exact=True)
+        text_el = page.get_by_text(text, exact=True)
         count = await text_el.count()
         print(f"   [debug] get_by_text matched {count} element(s)")
         await text_el.first.click(force=True, timeout=5000)
