@@ -1,8 +1,8 @@
 name: Tex QA Production Tests (weberranch.com)
 
 on:
-  schedule:
-    - cron: '0 10 * * *'   # 10am UTC daily (separate from staging run at 9am)
+  # schedule:              # paused - run manually via workflow_dispatch
+  #   - cron: '0 10 * * *'   # 10am UTC daily (separate from staging run at 9am)
   workflow_dispatch:
     inputs:
       limit:

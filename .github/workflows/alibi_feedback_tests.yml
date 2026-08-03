@@ -1,9 +1,9 @@
 name: Alibi Feedback Tests
 
 on:
-  schedule:
-    - cron: '0 9 * * *'   # 9am UTC
-    - cron: '0 17 * * *'  # 5pm UTC
+  # schedule:             # paused - run manually via workflow_dispatch
+  #   - cron: '0 9 * * *'   # 9am UTC
+  #   - cron: '0 17 * * *'  # 5pm UTC
   workflow_dispatch:        # manual trigger
 
 jobs:

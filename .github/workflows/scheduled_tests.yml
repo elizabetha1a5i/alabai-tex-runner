@@ -1,9 +1,9 @@
 name: Tex QA Scheduled Tests
 
 on:
-  schedule:
-    - cron: '0 9 * * *'   # 9am UTC (10am UK summer)
-    - cron: '0 17 * * *'  # 5pm UTC (6pm UK summer)
+  # schedule:             # paused - run manually via workflow_dispatch
+  #   - cron: '0 9 * * *'   # 9am UTC (10am UK summer)
+  #   - cron: '0 17 * * *'  # 5pm UTC (6pm UK summer)
   workflow_dispatch:        # allows manual trigger from GitHub
 
 jobs:
