@@ -12,6 +12,8 @@ import json
 import re
 from pathlib import Path
 
+from kb_criteria import facts as kb_facts, find_matching as kb_find_matching
+
 FAIL_THRESHOLD = 500
 WARN_THRESHOLD = 100
 
@@ -88,6 +90,11 @@ def evaluate_test_alignment(
     kb_text = "\n".join(kb_lines)
     kb_text = kb_text[:3000] + ("\n  [truncated...]" if len(kb_text) > 3000 else "")
 
+    fact_lines = ["APPROVED BRAND FACTS (fixed weight — never invent facts outside this list):"]
+    for f in kb_facts():
+        fact_lines.append(f"  • {f['text']}")
+    facts_text = "\n".join(fact_lines)
+
     rules_text = format_rules_for_prompt(test_category)
 
     _guidelines_path = Path(__file__).parent / "qa" / "evaluation_guidelines.md"
@@ -109,6 +116,8 @@ IMPORTANCE: {context.get('importance', 5)}/10
 === END INSTRUCTIONS ===
 
 {kb_text}
+
+{facts_text}
 
 --- CONVERSATION ---
 {conversation_text}
@@ -216,8 +225,26 @@ def run_dynamic_evaluation(
     explanation = alignment_result.get("explanation", "")
     issues = alignment_result.get("issues_flagged", [])
 
-    # Step 3: MSE penalty
-    penalty = calculate_mse_penalty(alignment_score, importance)
+    # Override each issue's severity with the fixed weight from
+    # kb/qa_criteria.csv when its theme/issue label matches a known rule or
+    # fact — so a Critical brand-fact/rule miss always carries its fixed
+    # weight instead of Gemini's freeform 1-10 guess. Unmatched issues keep
+    # Gemini's guess as a fallback.
+    fixed_weights = []
+    matched_files = []
+    for issue in issues:
+        match = kb_find_matching(f"{issue.get('theme', '')} {issue.get('issue', '')} {issue.get('note', '')}")
+        if match:
+            issue["severity"] = match["weight"]
+            issue["matched_criterion"] = match["id"]
+            issue["file"] = match["source"]
+            fixed_weights.append(match["weight"])
+            matched_files.append(match["source"])
+
+    # Step 3: MSE penalty — a matched Critical rule/fact drives the
+    # importance used in the penalty math, regardless of the per-test guess.
+    effective_importance = max([importance] + fixed_weights)
+    penalty = calculate_mse_penalty(alignment_score, effective_importance)
     status = penalty["status"]
 
     # Map issues to existing result fields by severity
@@ -228,12 +255,22 @@ def run_dynamic_evaluation(
     def fmt(issue_list):
         return ", ".join(i.get("issue", "") for i in issue_list)
 
+    # Files to amend: dedup source files from critical/high issues that
+    # matched a known kb/qa_criteria.csv row (via the "source" column).
+    # Unmatched issues have no known file — Gemini's free-text theme isn't
+    # reliable enough to guess a file from.
+    files_to_amend = []
+    for i in critical + high:
+        f = i.get("file")
+        if f and f not in files_to_amend:
+            files_to_amend.append(f)
+
     # Build notes block
     notes_lines = [
         "",
         f"TEST: {test_name}",
         f"RESULT: {status}  |  SCORE: {alignment_score}/100 alignment",
-        f"PENALTY: {penalty['penalty_points']}  |  IMPORTANCE: {importance}/10",
+        f"PENALTY: {penalty['penalty_points']}  |  IMPORTANCE: {effective_importance}/10 (guess {importance}, fixed-weight matches {fixed_weights})",
         "", "SUMMARY", "-------", explanation, "",
     ]
     if critical:
@@ -259,7 +296,7 @@ def run_dynamic_evaluation(
         "notes":               "\n".join(notes_lines),
         "alignment_score":     alignment_score,
         "penalty_points":      penalty["penalty_points"],
-        "importance":          importance,
+        "importance":          effective_importance,
         "issues_flagged":      issues,
         "criteria_tested":     str(len(issues) + 1),
         "criteria_passed":     str(1 if status == "PASS" else 0),
@@ -268,6 +305,7 @@ def run_dynamic_evaluation(
         "high_failures":       fmt(high),
         "other_failures":      fmt(other),
         "all_failed_criteria": fmt(critical + high + other),
+        "files_to_amend":      ", ".join(files_to_amend),
         "url_failures":        "",
         "url_warnings":        "",
     }

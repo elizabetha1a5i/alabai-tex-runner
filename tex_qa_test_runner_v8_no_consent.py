@@ -563,6 +563,11 @@ Return ONLY valid JSON — no markdown fences, no preamble:
         all_fail_ids = ", ".join(
             [r["rule"] for r in fc] + [r["rule"] for r in fh] + [r["rule"] for r in fo]
         )
+        files_to_amend = []
+        for r in fc + fh:
+            f = r.get("source", "")
+            if f and f not in files_to_amend:
+                files_to_amend.append(f)
 
         return {
             "status":              status,
@@ -573,6 +578,7 @@ Return ONLY valid JSON — no markdown fences, no preamble:
             "high_failures":       high_ids,
             "other_failures":      other_ids,
             "all_failed_criteria": all_fail_ids,
+            "files_to_amend":      ", ".join(files_to_amend),
             "url_failures":        url_fail_ids,
             "url_warnings":        url_warn_ids,
             "criteria_tested":     str(len(app)),
@@ -1240,7 +1246,7 @@ async def run_tests(tests_to_run, drive_service, sheets_service):
             "test_id", "name", "category", "date", "environment",
             "status", "score", "criteria_tested", "criteria_passed", "criteria_failed",
             "critical_failures", "high_failures", "other_failures",
-            "all_failed_criteria", "url_failures", "url_warnings",
+            "all_failed_criteria", "files_to_amend", "url_failures", "url_warnings",
             "response_time", "message_count",
             "screenshot_path", "conversation_path",
             "summary", "notes",
